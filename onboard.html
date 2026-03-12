@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get Started — Caption Pilot</title>
+  <meta name="description" content="Set up your Caption Pilot account in 5 minutes. Share a photo album, meet Vera, and never think about posting again.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #faf8f5;
+      --white:   #ffffff;
+      --warm:    #f2ede6;
+      --border:  #e4ddd5;
+      --text:    #1a1714;
+      --muted:   #7a6f66;
+      --light:   #a89e96;
+      --sage:    #5c7e6c;
+      --sage-lt: #e8f0eb;
+      --sage-md: #c4d9cb;
+      --red:     #c17a7a;
+      --red-lt:  #fff0f0;
+      --radius:  14px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Top bar ── */
+    .topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 18px 48px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; text-decoration: none; color: var(--text); }
+    .logo span { color: var(--sage); }
+    .topbar-help { font-size: 0.85rem; color: var(--muted); }
+    .topbar-help a { color: var(--sage); text-decoration: none; font-weight: 500; }
+
+    /* ── Outer layout ── */
+    .wrap { flex: 1; display: flex; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+    /* ── Sidebar ── */
+    .sidebar { width: 260px; flex-shrink: 0; background: var(--white); border-right: 1px solid var(--border); padding: 48px 32px; display: flex; flex-direction: column; }
+    .sidebar-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light); margin-bottom: 28px; }
+    .steps-nav { display: flex; flex-direction: column; flex: 1; }
+    .snav-item { display: flex; gap: 14px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; cursor: default; }
+    .snav-item.clickable { cursor: pointer; }
+    .snav-item.clickable:hover { background: var(--bg); }
+    .snav-dot { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; color: var(--light); transition: all 0.3s; background: var(--white); }
+    .snav-item.active .snav-dot { border-color: var(--sage); background: var(--sage); color: #fff; }
+    .snav-item.done .snav-dot { border-color: var(--sage-md); background: var(--sage-lt); color: var(--sage); }
+    .snav-info { padding-top: 3px; }
+    .snav-step { font-size: 0.72rem; color: var(--light); font-weight: 400; }
+    .snav-title { font-size: 0.88rem; font-weight: 500; color: var(--light); transition: color 0.2s; }
+    .snav-item.active .snav-title { color: var(--text); font-weight: 600; }
+    .snav-item.done .snav-title { color: var(--muted); }
+    .snav-line { width: 1.5px; height: 18px; background: var(--border); margin-left: 25px; border-radius: 2px; transition: background 0.3s; }
+    .snav-line.done { background: var(--sage-md); }
+    .sidebar-foot { padding-top: 24px; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); line-height: 1.65; font-weight: 300; }
+    .sidebar-foot a { color: var(--sage); text-decoration: none; font-weight: 500; }
+
+    /* ── Main ── */
+    .main { flex: 1; padding: 52px 64px; }
+    .prog-bar { width: 100%; height: 3px; background: var(--border); border-radius: 3px; margin-bottom: 52px; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--sage); border-radius: 3px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+
+    /* ── Step panels ── */
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeUp 0.3s ease; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .step-eyebrow { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sage); margin-bottom: 12px; }
+    .step-h { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 3vw, 2.4rem); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 10px; }
+    .step-sub { font-size: 0.98rem; color: var(--muted); line-height: 1.75; margin-bottom: 36px; max-width: 500px; font-weight: 300; }
+
+    /* ── Form ── */
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .fg { margin-bottom: 18px; }
+    label { display: block; font-size: 0.83rem; font-weight: 600; color: var(--text); margin-bottom: 7px; }
+    label .hint { font-weight: 300; color: var(--muted); margin-left: 4px; }
+    input, textarea, select { width: 100%; background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 0.93rem; outline: none; font-family: 'DM Sans', sans-serif; transition: border-color 0.2s, box-shadow 0.2s; resize: vertical; }
+    input:focus, textarea:focus { border-color: var(--sage); box-shadow: 0 0 0 3px rgba(92,126,108,0.1); }
+    input::placeholder, textarea::placeholder { color: var(--light); }
+    .err { font-size: 0.78rem; color: var(--red); margin-top: 5px; display: none; }
+    .err.show { display: block; }
+
+    /* Vibe chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 9px; }
+    .chip { padding: 7px 16px; border-radius: 100px; border: 1.5px solid var(--border); font-size: 0.83rem; cursor: pointer; transition: all 0.15s; color: var(--muted); background: var(--white); user-select: none; font-weight: 400; }
+    .chip:hover { border-color: var(--sage-md); color: var(--text); }
+    .chip.on { border-color: var(--sage); background: var(--sage-lt); color: var(--sage); font-weight: 600; }
+
+    /* ── Buttons ── */
+    .actions { display: flex; gap: 12px; margin-top: 40px; align-items: center; }
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 12px 24px; border-radius: 100px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; border: none; font-family: 'DM Sans', sans-serif; text-decoration: none; }
+    .btn-sage { background: var(--sage); color: #fff; }
+    .btn-sage:hover { background: #4d6e5d; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(92,126,108,0.22); }
+    .btn-sage:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost { background: transparent; color: var(--muted); padding: 12px 16px; }
+    .btn-ghost:hover { color: var(--text); }
+    .step-count { font-size: 0.82rem; color: var(--light); margin-left: auto; font-weight: 300; }
+
+    /* ── Album step ── */
+    .album-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+    .al-item { display: flex; gap: 16px; align-items: flex-start; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+    .al-num { width: 30px; height: 30px; border-radius: 50%; background: var(--sage-lt); border: 1.5px solid var(--sage-md); color: var(--sage); font-weight: 700; font-size: 0.82rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .al-body h4 { font-size: 0.92rem; font-weight: 600; margin-bottom: 4px; }
+    .al-body p { font-size: 0.83rem; color: var(--muted); line-height: 1.65; font-weight: 300; }
+    .al-body code { background: var(--bg); padding: 2px 8px; border-radius: 5px; font-size: 0.78rem; color: var(--sage); font-family: monospace; border: 1px solid var(--border); }
+    .copy-row { display: inline-flex; align-items: center; gap: 10px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 16px; font-family: monospace; font-size: 0.88rem; color: var(--sage); cursor: pointer; margin-top: 10px; transition: border-color 0.2s; user-select: none; }
+    .copy-row:hover { border-color: var(--sage); }
+    .copy-lbl { font-family: 'DM Sans', sans-serif; font-size: 0.75rem; color: var(--muted); }
+    .confirm-row { display: flex; gap: 12px; align-items: center; background: var(--sage-lt); border: 1.5px solid var(--sage-md); border-radius: 12px; padding: 16px 20px; }
+    .confirm-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--sage); cursor: pointer; flex-shrink: 0; }
+    .confirm-row label { font-size: 0.88rem; font-weight: 500; color: var(--text); margin-bottom: 0; cursor: pointer; }
+
+    /* ── Vera preview ── */
+    .vera-card { background: var(--white); border: 1.5px solid var(--border); border-radius: 20px; padding: 24px; margin-bottom: 28px; }
+    .vera-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .vera-avi { width: 42px; height: 42px; border-radius: 50%; background: var(--sage); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; color: #fff; flex-shrink: 0; }
+    .vera-head-name { font-weight: 700; font-size: 0.95rem; }
+    .vera-status { font-size: 0.72rem; color: var(--sage); display: flex; align-items: center; gap: 5px; }
+    .vera-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: block; }
+    .vera-msg { font-size: 0.9rem; line-height: 1.75; color: var(--text); font-weight: 300; }
+    .vera-msg strong { color: var(--sage); font-weight: 600; }
+
+    /* ── Complete ── */
+    .complete-center { text-align: center; padding: 16px 0 36px; }
+    .complete-icon { font-size: 3.5rem; margin-bottom: 20px; }
+    .what-next { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0; }
+    .wn-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; text-align: center; }
+    .wn-icon { font-size: 1.4rem; margin-bottom: 10px; }
+    .wn-card h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 5px; }
+    .wn-card p { font-size: 0.8rem; color: var(--muted); line-height: 1.55; font-weight: 300; }
+    .vera-ready { background: var(--sage-lt); border: 1.5px solid var(--sage-md); border-radius: var(--radius); padding: 22px 24px; display: flex; gap: 16px; align-items: center; }
+    .vera-ready-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .vera-ready h4 { font-weight: 600; margin-bottom: 4px; font-size: 0.95rem; }
+    .vera-ready p { font-size: 0.83rem; color: var(--muted); line-height: 1.6; font-weight: 300; }
+
+    @media (max-width: 780px) {
+      .topbar { padding: 16px 20px; }
+      .wrap { flex-direction: column; }
+      .sidebar { display: none; }
+      .main { padding: 32px 24px; }
+      .row-2 { grid-template-columns: 1fr; }
+      .what-next { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/" class="logo">caption <span>pilot</span></a>
+  <div class="topbar-help">Need help? <a href="sms:+15551234567">Text Vera →</a></div>
+</div>
+
+<div class="wrap">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-label">Getting started</div>
+    <div class="steps-nav" id="snav">
+      <div class="snav-item active" data-step="1">
+        <div class="snav-dot">1</div>
+        <div class="snav-info">
+          <div class="snav-step">Step 1 of 4</div>
+          <div class="snav-title">Your account</div>
+        </div>
+      </div>
+      <div class="snav-line" id="line-1"></div>
+      <div class="snav-item" data-step="2">
+        <div class="snav-dot">2</div>
+        <div class="snav-info">
+          <div class="snav-step">Step 2 of 4</div>
+          <div class="snav-title">Your brand</div>
+        </div>
+      </div>
+      <div class="snav-line" id="line-2"></div>
+      <div class="snav-item" data-step="3">
+        <div class="snav-dot">3</div>
+        <div class="snav-info">
+          <div class="snav-step">Step 3 of 4</div>
+          <div class="snav-title">Share your album</div>
+        </div>
+      </div>
+      <div class="snav-line" id="line-3"></div>
+      <div class="snav-item" data-step="4">
+        <div class="snav-dot">4</div>
+        <div class="snav-info">
+          <div class="snav-step">Step 4 of 4</div>
+          <div class="snav-title">Meet Vera</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-foot">
+      Questions? Text Vera at <a href="sms:+15551234567">+1 (555) 123-4567</a> or email <a href="mailto:hello@captionpilot.app">hello@captionpilot.app</a>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="prog-bar">
+      <div class="prog-fill" id="prog" style="width:25%"></div>
+    </div>
+
+    <!-- Step 1 — Account -->
+    <div class="panel active" id="panel-1">
+      <div class="step-eyebrow">Step 1 of 4</div>
+      <h2 class="step-h">Let's get you set up.</h2>
+      <p class="step-sub">A few quick basics so Vera knows who she's working for.</p>
+      <div class="row-2">
+        <div class="fg">
+          <label>Your name</label>
+          <input type="text" id="f-name" placeholder="Cassy Wilson" autocomplete="name">
+          <div class="err" id="e-name">Please enter your name</div>
+        </div>
+        <div class="fg">
+          <label>Business name</label>
+          <input type="text" id="f-biz" placeholder="Heartland Flower Farm" autocomplete="organization">
+          <div class="err" id="e-biz">Please enter your business name</div>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="fg">
+          <label>Phone number <span class="hint">Vera will text you here</span></label>
+          <input type="tel" id="f-phone" placeholder="+1 (913) 555-0000" autocomplete="tel">
+          <div class="err" id="e-phone">Please enter a valid phone number</div>
+        </div>
+        <div class="fg">
+          <label>Email address</label>
+          <input type="email" id="f-email" placeholder="you@yourbusiness.com" autocomplete="email">
+          <div class="err" id="e-email">Please enter a valid email</div>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Instagram handle</label>
+        <input type="text" id="f-ig" placeholder="@heartland_flower">
+        <div class="err" id="e-ig">Please enter your Instagram handle</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-sage" onclick="go(2)">Continue →</button>
+        <span class="step-count">1 of 4</span>
+      </div>
+    </div>
+
+    <!-- Step 2 — Brand -->
+    <div class="panel" id="panel-2">
+      <div class="step-eyebrow">Step 2 of 4</div>
+      <h2 class="step-h">Tell Vera about your brand.</h2>
+      <p class="step-sub">This is Vera's cheat sheet. The better she knows your business, the better every caption will sound.</p>
+      <div class="fg">
+        <label>What do you sell or make? <span class="hint">Be specific</span></label>
+        <textarea id="f-what" rows="3" placeholder="We grow cut flowers — peonies, ranunculus, tulips, and dahlias — and sell them at the farmers market and through a weekly subscription."></textarea>
+      </div>
+      <div class="fg">
+        <label>What's your vibe? <span class="hint">Pick up to 4</span></label>
+        <div class="chips" id="vibes">
+          <div class="chip" onclick="chip(this)">Warm & welcoming</div>
+          <div class="chip" onclick="chip(this)">Earthy & natural</div>
+          <div class="chip" onclick="chip(this)">Playful & fun</div>
+          <div class="chip" onclick="chip(this)">Premium & refined</div>
+          <div class="chip" onclick="chip(this)">Raw & authentic</div>
+          <div class="chip" onclick="chip(this)">Bold & confident</div>
+          <div class="chip" onclick="chip(this)">Calm & peaceful</div>
+          <div class="chip" onclick="chip(this)">Rugged & tough</div>
+          <div class="chip" onclick="chip(this)">Nostalgic & classic</div>
+          <div class="chip" onclick="chip(this)">Modern & minimal</div>
+          <div class="chip" onclick="chip(this)">Witty & clever</div>
+          <div class="chip" onclick="chip(this)">Community-focused</div>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Who are your customers?</label>
+        <input type="text" id="f-who" placeholder="Local families, home decorators, wedding planners, market shoppers">
+      </div>
+      <div class="fg">
+        <label>Anything Vera should never say or do? <span class="hint">Optional</span></label>
+        <input type="text" id="f-avoid" placeholder="Don't mention pricing, keep it positive, no comparisons to competitors">
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(1)">← Back</button>
+        <button class="btn btn-sage" onclick="go(3)">Continue →</button>
+        <span class="step-count">2 of 4</span>
+      </div>
+    </div>
+
+    <!-- Step 3 — Album -->
+    <div class="panel" id="panel-3">
+      <div class="step-eyebrow">Step 3 of 4</div>
+      <h2 class="step-h">Share your photo album.</h2>
+      <p class="step-sub">This is how Vera sees your photos. Every time you add a new one, she gets to work. Takes about two minutes to set up.</p>
+      <div class="album-list">
+        <div class="al-item">
+          <div class="al-num">1</div>
+          <div class="al-body">
+            <h4>Open Photos on your iPhone</h4>
+            <p>Tap the <code>+</code> button in the Albums tab and choose <strong>New Shared Album</strong>.</p>
+          </div>
+        </div>
+        <div class="al-item">
+          <div class="al-num">2</div>
+          <div class="al-body">
+            <h4>Name it after your business</h4>
+            <p>Use your business name so it's easy to find — e.g. <code>Heartland Flower Farm</code>.</p>
+          </div>
+        </div>
+        <div class="al-item">
+          <div class="al-num">3</div>
+          <div class="al-body">
+            <h4>Invite Vera's email address</h4>
+            <p>Add Vera as a subscriber so she sees new photos the moment you add them.</p>
+            <div class="copy-row" onclick="copyEmail(this)">
+              📸 photos@captionpilot.app
+              <span class="copy-lbl">Copy</span>
+            </div>
+          </div>
+        </div>
+        <div class="al-item">
+          <div class="al-num">4</div>
+          <div class="al-body">
+            <h4>Add 3–5 of your best photos</h4>
+            <p>Drop some photos in to get started. Phone shots, professional photos — anything works.</p>
+          </div>
+        </div>
+      </div>
+      <div class="confirm-row">
+        <input type="checkbox" id="album-done" onchange="albumCheck()">
+        <label for="album-done">I've created the shared album and invited photos@captionpilot.app</label>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(2)">← Back</button>
+        <button class="btn btn-sage" id="btn-3" onclick="go(4)" disabled>Continue →</button>
+        <span class="step-count">3 of 4</span>
+      </div>
+    </div>
+
+    <!-- Step 4 — Meet Vera -->
+    <div class="panel" id="panel-4">
+      <div class="step-eyebrow">Step 4 of 4</div>
+      <h2 class="step-h">Almost there.<br>Meet Vera.</h2>
+      <p class="step-sub">Here's what your first text from her will look like — and what happens next.</p>
+      <div class="vera-card">
+        <div class="vera-head">
+          <div class="vera-avi">✦</div>
+          <div>
+            <div class="vera-head-name">Vera · Caption Pilot</div>
+            <div class="vera-status">Active now</div>
+          </div>
+        </div>
+        <div class="vera-msg">
+          Hey <strong id="vp-name">there</strong>! I'm Vera, your social media manager for <strong id="vp-biz">your business</strong> 👋<br><br>
+          I've got your brand info saved and I'm already watching your album. The moment you add a photo, I'll put together a post and send you a preview to approve.<br><br>
+          If you ever need anything — just text me. I'm always here. 😊
+        </div>
+      </div>
+      <div class="what-next">
+        <div class="wn-card">
+          <div class="wn-icon">📸</div>
+          <h4>Add a photo</h4>
+          <p>Drop it in your shared album — Vera picks it up automatically.</p>
+        </div>
+        <div class="wn-card">
+          <div class="wn-icon">💬</div>
+          <h4>Get a preview</h4>
+          <p>Vera writes the caption, picks music, texts you to approve.</p>
+        </div>
+        <div class="wn-card">
+          <div class="wn-icon">✅</div>
+          <h4>Reply YES</h4>
+          <p>One text and it's live. Ask for changes and she revises on the spot.</p>
+        </div>
+      </div>
+      <div class="vera-ready">
+        <div class="vera-ready-icon">✦</div>
+        <div>
+          <h4>Vera is ready to go</h4>
+          <p>Hit the button below and Vera will text your phone right now. That's your official start — drop a photo into your album and she'll handle the rest.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="go(3)">← Back</button>
+        <button class="btn btn-sage" onclick="finish()" style="font-size:0.97rem;padding:14px 30px;">✦ Text me from Vera now →</button>
+        <span class="step-count">4 of 4</span>
+      </div>
+    </div>
+
+    <!-- Complete -->
+    <div class="panel" id="panel-done">
+      <div class="complete-center">
+        <div class="complete-icon">🎉</div>
+        <h2 class="step-h" style="text-align:center">You're all set.</h2>
+        <p class="step-sub" style="text-align:center;margin:8px auto 0;max-width:420px">Vera just texted your phone. Drop a photo into your album and she'll have a post ready in minutes.</p>
+      </div>
+      <div class="what-next">
+        <div class="wn-card">
+          <div class="wn-icon">📸</div>
+          <h4>Add photos anytime</h4>
+          <p>Your shared album is always open. Add photos whenever inspiration strikes.</p>
+        </div>
+        <div class="wn-card">
+          <div class="wn-icon">✉️</div>
+          <h4>Vera texts you first</h4>
+          <p>Every post gets a preview sent to your phone before anything goes live.</p>
+        </div>
+        <div class="wn-card">
+          <div class="wn-icon">💚</div>
+          <h4>You're in control</h4>
+          <p>Change anything, skip a post, or just text Vera whenever you need her.</p>
+        </div>
+      </div>
+      <div class="vera-ready">
+        <div class="vera-ready-icon">✦</div>
+        <div>
+          <h4>Vera is watching your album</h4>
+          <p>The hard part is done. From here — just live your life and take photos. Vera does the rest.</p>
+        </div>
+      </div>
+      <div class="actions" style="justify-content:center;margin-top:28px">
+        <a href="https://instagram.com" target="_blank" class="btn btn-ghost">View your Instagram →</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let cur = 1;
+  const prog = [25, 50, 75, 100];
+
+  function go(n) {
+    if (n > cur && !validate(cur)) return;
+    // Sidebar
+    document.querySelectorAll('.snav-item').forEach((el, i) => {
+      el.classList.remove('active', 'done');
+      if (i + 1 === n) el.classList.add('active');
+      if (i + 1 < n) el.classList.add('done');
+    });
+    for (let i = 1; i <= 3; i++) {
+      document.getElementById('line-' + i)?.classList.toggle('done', i < n);
+    }
+    document.getElementById('prog').style.width = prog[n - 1] + '%';
+    if (n === 4) updateVera();
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + n)?.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    cur = n;
+  }
+
+  function validate(n) {
+    if (n !== 1) return true;
+    let ok = true;
+    const checks = [
+      ['f-name', 'e-name', v => v.trim().length > 0],
+      ['f-biz',  'e-biz',  v => v.trim().length > 0],
+      ['f-phone','e-phone', v => v.replace(/\D/g,'').length >= 7],
+      ['f-email','e-email', v => v.includes('@')],
+      ['f-ig',   'e-ig',   v => v.trim().length > 0],
+    ];
+    checks.forEach(([fid, eid, test]) => {
+      const val = document.getElementById(fid).value;
+      const err = document.getElementById(eid);
+      if (!test(val)) { err.classList.add('show'); ok = false; }
+      else err.classList.remove('show');
+    });
+    return ok;
+  }
+
+  function chip(el) {
+    const sel = document.querySelectorAll('.chip.on').length;
+    if (!el.classList.contains('on') && sel >= 4) return;
+    el.classList.toggle('on');
+  }
+
+  function albumCheck() {
+    document.getElementById('btn-3').disabled = !document.getElementById('album-done').checked;
+  }
+
+  function updateVera() {
+    const name = document.getElementById('f-name').value.split(' ')[0] || 'there';
+    const biz  = document.getElementById('f-biz').value || 'your business';
+    document.getElementById('vp-name').textContent = name;
+    document.getElementById('vp-biz').textContent  = biz;
+  }
+
+  function copyEmail(el) {
+    navigator.clipboard.writeText('photos@captionpilot.app').then(() => {
+      el.querySelector('.copy-lbl').textContent = 'Copied ✓';
+      setTimeout(() => el.querySelector('.copy-lbl').textContent = 'Copy', 2000);
+    });
+  }
+
+  function finish() {
+    const data = {
+      name:     document.getElementById('f-name').value,
+      biz:      document.getElementById('f-biz').value,
+      phone:    document.getElementById('f-phone').value,
+      email:    document.getElementById('f-email').value,
+      ig:       document.getElementById('f-ig').value,
+      what:     document.getElementById('f-what').value,
+      who:      document.getElementById('f-who').value,
+      avoid:    document.getElementById('f-avoid').value,
+      vibes:    [...document.querySelectorAll('.chip.on')].map(c => c.textContent),
+    };
+    console.log('Onboard:', data);
+    // TODO: POST /api/onboard → Twilio welcome SMS
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-done').classList.add('active');
+    document.getElementById('prog').style.width = '100%';
+    document.querySelectorAll('.snav-item').forEach(el => el.classList.add('done'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
+</body>
+</html>

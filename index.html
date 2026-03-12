@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caption Pilot — Your social media, on autopilot.</title>
+  <meta name="description" content="Drop a photo. Vera handles the rest. The social media manager that works through a simple text — no apps, no stress, no more dreading it.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Clouds ── */
+    .clouds { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .cloud { position: absolute; border-radius: 50%; filter: blur(80px); animation: cloudDrift linear infinite; }
+    .cloud-1  { width: 720px; height: 260px; top:  2%; left: -8%;    background: rgba(210,224,235,0.7);  animation-duration: 90s;  animation-delay:   0s; }
+    .cloud-2  { width: 520px; height: 190px; top:  9%; left: 55%;    background: rgba(215,228,238,0.55); animation-duration: 120s; animation-delay: -30s; }
+    .cloud-3  { width: 580px; height: 210px; top: 29%; left: -12%;   background: rgba(212,226,236,0.45); animation-duration: 105s; animation-delay: -50s; }
+    .cloud-4  { width: 420px; height: 155px; top: 43%; left: 63%;    background: rgba(218,230,240,0.40); animation-duration: 140s; animation-delay: -80s; }
+    .cloud-5  { width: 540px; height: 195px; top: 61%; left: -5%;    background: rgba(210,224,235,0.35); animation-duration:  95s; animation-delay: -20s; }
+    .cloud-6  { width: 460px; height: 168px; top: 73%; left: 47%;    background: rgba(215,228,238,0.42); animation-duration: 115s; animation-delay: -60s; }
+    .cloud-7  { width: 360px; height: 132px; top: 86%; left: 17%;    background: rgba(212,226,236,0.30); animation-duration: 130s; animation-delay: -40s; }
+    @keyframes cloudDrift {
+      0%   { transform: translateX(0px) translateY(0px); }
+      25%  { transform: translateX(28px) translateY(-10px); }
+      50%  { transform: translateX(50px) translateY(4px); }
+      75%  { transform: translateX(22px) translateY(-6px); }
+      100% { transform: translateX(0px) translateY(0px); }
+    }
+    /* Ensure all content sits above clouds */
+    nav, .hero-wrap, .exhale-band, .section, #how, #vera, #pricing,
+    .waitlist-bg, footer, hr.divider { position: relative; z-index: 1; }
+
+    :root {
+      --bg:       #faf8f5;
+      --white:    #ffffff;
+      --warm:     #f2ede6;
+      --border:   #e4ddd5;
+      --text:     #1a1714;
+      --muted:    #7a6f66;
+      --light:    #a89e96;
+      --sage:     #5c7e6c;
+      --sage-lt:  #e8f0eb;
+      --sage-md:  #c4d9cb;
+      --radius:   16px;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; line-height: 1.6; overflow-x: hidden; }
+
+    /* ── Nav ── */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 20px 48px; display: flex; align-items: center; justify-content: space-between; transition: all 0.3s; }
+    nav.scrolled { background: rgba(250,248,245,0.94); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--sage); }
+    .nav-links { display: flex; gap: 36px; align-items: center; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 24px; border-radius: 100px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; text-decoration: none; border: none; font-family: 'DM Sans', sans-serif; }
+    .btn-sage { background: var(--sage); color: #fff; }
+    .btn-sage:hover { background: #4d6e5d; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(92,126,108,0.25); }
+    .btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: var(--sage); color: var(--sage); }
+
+    /* ── Hero ── */
+    .hero-wrap { max-width: 1160px; margin: 0 auto; padding: 148px 48px 100px; display: flex; align-items: center; gap: 80px; }
+    .hero-left { flex: 1.1; }
+    .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; background: var(--sage-lt); color: var(--sage); padding: 6px 16px; border-radius: 100px; font-size: 0.82rem; font-weight: 600; margin-bottom: 28px; }
+    h1 { font-family: 'Playfair Display', serif; font-size: clamp(3rem, 5.5vw, 5rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 24px; color: var(--text); }
+    h1 em { color: var(--sage); font-style: italic; }
+    .hero-sub { font-size: 1.15rem; color: var(--muted); line-height: 1.75; max-width: 440px; margin-bottom: 40px; font-weight: 300; }
+    .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+    .hero-actions .btn { padding: 14px 30px; font-size: 1rem; }
+    .hero-trust { margin-top: 44px; display: flex; align-items: center; gap: 12px; }
+    .trust-faces { display: flex; }
+    .trust-face { width: 34px; height: 34px; border-radius: 50%; background: var(--warm); border: 2px solid var(--bg); display: flex; align-items: center; justify-content: center; font-size: 1rem; margin-left: -9px; }
+    .trust-face:first-child { margin-left: 0; }
+    .trust-text { font-size: 0.85rem; color: var(--muted); }
+    .trust-text strong { color: var(--text); font-weight: 600; }
+
+    /* ── Phone ── */
+    .hero-right { flex: 0.85; display: flex; justify-content: center; }
+    .phone-wrap { position: relative; }
+    .phone-glow { position: absolute; inset: -40px; background: radial-gradient(circle at 50% 60%, rgba(92,126,108,0.12) 0%, transparent 70%); pointer-events: none; }
+    .phone { width: 285px; background: #fff; border-radius: 44px; padding: 10px; box-shadow: 0 24px 60px rgba(26,23,20,0.10), 0 0 0 1px rgba(0,0,0,0.06); }
+    .phone-screen { background: #f5f5f7; border-radius: 36px; overflow: hidden; height: 560px; display: flex; flex-direction: column; }
+    .p-statusbar { background: #fff; padding: 14px 20px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem; font-weight: 600; color: #1a1a1a; }
+    .p-contact-bar { background: #fff; padding: 8px 16px 14px; text-align: center; border-bottom: 1px solid #e8e8e8; }
+    .p-contact-name { font-size: 0.95rem; font-weight: 600; color: #1a1a1a; }
+    .p-contact-sub { font-size: 0.7rem; color: #8e8e93; }
+    .p-messages { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 9px; overflow: hidden; }
+    .pm { max-width: 82%; padding: 10px 14px; font-size: 0.78rem; line-height: 1.5; border-radius: 18px; }
+    .pm.v { background: #e9e9eb; color: #1a1a1a; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .pm.u { background: var(--sage); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; font-weight: 500; }
+    .pm .who { font-size: 0.62rem; font-weight: 700; color: var(--sage); margin-bottom: 3px; }
+    .pm .post-link { color: var(--sage); font-weight: 600; }
+    .p-input-bar { background: #fff; padding: 10px 14px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #e8e8e8; }
+    .p-input { flex: 1; background: #f5f5f7; border-radius: 18px; padding: 8px 14px; font-size: 0.72rem; color: #8e8e93; }
+    .p-send { width: 28px; height: 28px; border-radius: 50%; background: var(--sage); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #fff; }
+
+    /* ── Sections ── */
+    .section { padding: 100px 48px; max-width: 1160px; margin: 0 auto; }
+    .section-center { text-align: center; }
+    .eyebrow { display: inline-block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sage); margin-bottom: 16px; }
+    h2 { font-family: 'Playfair Display', serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; color: var(--text); margin-bottom: 16px; }
+    .section-sub { font-size: 1.05rem; color: var(--muted); max-width: 520px; line-height: 1.75; font-weight: 300; }
+    .section-sub.center { margin: 0 auto; text-align: center; }
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ── Exhale band ── */
+    .exhale-band { background: var(--sage); color: #fff; padding: 80px 48px; text-align: center; }
+    .exhale-band h2 { font-family: 'Playfair Display', serif; color: #fff; font-size: clamp(2rem, 4vw, 3.2rem); margin-bottom: 12px; }
+    .exhale-band p { color: rgba(255,255,255,0.75); font-size: 1.1rem; max-width: 520px; margin: 0 auto; line-height: 1.75; font-weight: 300; }
+
+    /* ── Steps ── */
+    .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 64px; }
+    .step-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px 32px; position: relative; transition: box-shadow 0.2s; }
+    .step-card:hover { box-shadow: 0 8px 32px rgba(26,23,20,0.07); }
+    .step-num { font-family: 'Playfair Display', serif; font-size: 3.5rem; font-weight: 700; color: var(--sage-md); line-height: 1; margin-bottom: 20px; }
+    .step-icon-wrap { width: 52px; height: 52px; border-radius: 14px; background: var(--sage-lt); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 18px; }
+    .step-card h3 { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 600; margin-bottom: 10px; }
+    .step-card p { font-size: 0.9rem; color: var(--muted); line-height: 1.7; font-weight: 300; }
+
+    /* ── Before/After ── */
+    .ba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 64px; }
+    .ba-card { border-radius: var(--radius); padding: 40px; }
+    .ba-before { background: #fff7f7; border: 1.5px solid #f5d0d0; }
+    .ba-after { background: var(--sage-lt); border: 1.5px solid var(--sage-md); }
+    .ba-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 20px; }
+    .ba-before .ba-label { color: #c17a7a; }
+    .ba-after .ba-label { color: var(--sage); }
+    .ba-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .ba-list li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.9rem; line-height: 1.6; }
+    .ba-before .ba-list li::before { content: '×'; color: #c17a7a; font-weight: 700; font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+    .ba-after .ba-list li::before { content: '✓'; color: var(--sage); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .ba-before .ba-list li { color: #7a5050; }
+    .ba-after .ba-list li { color: #2d4a39; }
+
+    /* ── Vera feature ── */
+    .vera-wrap { background: var(--white); border: 1px solid var(--border); border-radius: 24px; padding: 72px 64px; display: flex; gap: 72px; align-items: center; }
+    .vera-left { flex: 1; }
+    .vera-right { flex: 1; }
+    .vera-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--sage-lt); color: var(--sage); padding: 6px 16px; border-radius: 100px; font-size: 0.82rem; font-weight: 600; margin-bottom: 24px; }
+    .vera-feats { margin-top: 32px; display: flex; flex-direction: column; gap: 20px; }
+    .vera-feat { display: flex; gap: 16px; align-items: flex-start; }
+    .feat-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--sage-lt); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .feat-text h4 { font-weight: 600; margin-bottom: 4px; font-size: 0.95rem; }
+    .feat-text p { font-size: 0.85rem; color: var(--muted); line-height: 1.65; font-weight: 300; }
+
+    /* Chat (large) */
+    .chat-demo { background: var(--bg); border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+    .cd-row { display: flex; gap: 10px; align-items: flex-end; }
+    .cd-row.right { flex-direction: row-reverse; }
+    .cd-avi { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+    .cd-avi.vera { background: var(--sage); color: #fff; }
+    .cd-avi.user { background: var(--warm); }
+    .cd-bubble { max-width: 78%; padding: 12px 16px; border-radius: 18px; font-size: 0.88rem; line-height: 1.65; }
+    .cd-bubble.vera { background: var(--white); border: 1px solid var(--border); border-bottom-left-radius: 4px; color: var(--text); }
+    .cd-bubble.user { background: var(--sage); color: #fff; border-bottom-right-radius: 4px; font-weight: 500; }
+
+    /* ── Testimonials ── */
+    .test-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 64px; }
+    .test-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; }
+    .test-stars { color: #f59e0b; letter-spacing: 3px; font-size: 0.85rem; margin-bottom: 16px; }
+    .test-quote { font-size: 0.92rem; color: var(--muted); line-height: 1.75; margin-bottom: 22px; font-style: italic; font-weight: 300; }
+    .test-author { display: flex; align-items: center; gap: 12px; }
+    .test-avi { width: 40px; height: 40px; border-radius: 50%; background: var(--warm); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    .test-name { font-weight: 600; font-size: 0.9rem; }
+    .test-biz { font-size: 0.8rem; color: var(--muted); }
+    .live-pill { display: inline-flex; align-items: center; gap: 10px; background: var(--white); border: 1px solid var(--border); border-radius: 100px; padding: 10px 20px; margin-top: 40px; font-size: 0.85rem; color: var(--muted); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .live-pill a { color: var(--sage); text-decoration: none; font-weight: 600; }
+    .live-pill a:hover { text-decoration: underline; }
+
+    /* ── Pricing ── */
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 64px; }
+    .price-card { background: var(--white); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 40px 36px; position: relative; transition: all 0.2s; }
+    .price-card:hover { box-shadow: 0 8px 32px rgba(26,23,20,0.08); }
+    .price-card.featured { border-color: var(--sage); background: #fff; }
+    .featured-tag { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--sage); color: #fff; padding: 4px 18px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+    .plan-tier { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .plan-amt { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 700; line-height: 1; margin-bottom: 4px; color: var(--text); }
+    .plan-amt span { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 400; color: var(--muted); }
+    .plan-desc { font-size: 0.85rem; color: var(--muted); margin-bottom: 28px; font-weight: 300; }
+    .plan-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+    .plan-list li { display: flex; gap: 10px; font-size: 0.88rem; color: var(--text); align-items: flex-start; }
+    .plan-list li::before { content: '✓'; color: var(--sage); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .plan-list li.na { color: var(--light); }
+    .plan-list li.na::before { content: '–'; color: var(--border); }
+
+    /* ── Waitlist ── */
+    .waitlist-bg { background: var(--warm); padding: 100px 48px; }
+    .waitlist-inner { max-width: 640px; margin: 0 auto; text-align: center; }
+    .waitlist-form { display: flex; gap: 12px; margin: 36px auto 0; }
+    .waitlist-form input { flex: 1; background: var(--white); border: 1.5px solid var(--border); border-radius: 100px; padding: 14px 22px; color: var(--text); font-size: 0.95rem; outline: none; transition: border-color 0.2s; font-family: 'DM Sans', sans-serif; }
+    .waitlist-form input:focus { border-color: var(--sage); }
+    .waitlist-form input::placeholder { color: var(--light); }
+    .form-note { font-size: 0.8rem; color: var(--muted); margin-top: 12px; font-weight: 300; }
+    #form-success { display: none; margin-top: 20px; color: var(--sage); font-weight: 600; font-size: 1rem; }
+
+    /* ── Footer ── */
+    footer { background: var(--white); border-top: 1px solid var(--border); padding: 48px; text-align: center; }
+    .footer-logo { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: block; }
+    .footer-logo span { color: var(--sage); }
+    footer nav a { color: var(--muted); text-decoration: none; font-size: 0.85rem; margin: 0 16px; }
+    footer nav a:hover { color: var(--text); }
+    .footer-copy { font-size: 0.8rem; color: var(--light); margin-top: 20px; font-weight: 300; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      nav { padding: 18px 24px; }
+      .nav-links { display: none; }
+      .hero-wrap { flex-direction: column; padding: 120px 24px 60px; text-align: center; gap: 40px; }
+      .hero-sub { max-width: 100%; }
+      .hero-actions { justify-content: center; }
+      .hero-trust { justify-content: center; }
+      .hero-right { display: none; }
+      .section { padding: 64px 24px; }
+      .steps-grid, .ba-grid, .test-grid, .pricing-grid { grid-template-columns: 1fr; }
+      .vera-wrap { flex-direction: column; padding: 40px 28px; gap: 36px; }
+      .exhale-band { padding: 64px 24px; }
+      .waitlist-bg { padding: 64px 24px; }
+      .waitlist-form { flex-direction: column; border-radius: var(--radius); }
+      .waitlist-form input { border-radius: 12px; }
+      .waitlist-form .btn { border-radius: 12px; }
+      footer { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Clouds -->
+<div class="clouds" aria-hidden="true">
+  <div class="cloud cloud-1"></div>
+  <div class="cloud cloud-2"></div>
+  <div class="cloud cloud-3"></div>
+  <div class="cloud cloud-4"></div>
+  <div class="cloud cloud-5"></div>
+  <div class="cloud cloud-6"></div>
+  <div class="cloud cloud-7"></div>
+</div>
+
+<!-- Nav -->
+<nav id="nav">
+  <a href="/" class="logo">caption <span>pilot</span></a>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#vera">Meet Vera</a>
+    <a href="#pricing">Pricing</a>
+  </div>
+  <a href="#waitlist" class="btn btn-sage">Get early access</a>
+</nav>
+
+<!-- Hero -->
+<div class="hero-wrap">
+  <div class="hero-left">
+    <div class="hero-eyebrow">✦ Now in early access</div>
+    <h1>Your social media,<br><em>on autopilot.</em></h1>
+    <p class="hero-sub">Take a photo. Drop it in an album. Vera takes care of everything else — captions, music, posting, all of it. No apps. No stress. Just breathe.</p>
+    <div class="hero-actions">
+      <a href="#waitlist" class="btn btn-sage">Get early access →</a>
+      <a href="#how" class="btn btn-outline">See how it works</a>
+    </div>
+    <div class="hero-trust">
+      <div class="trust-faces">
+        <div class="trust-face">🌸</div>
+        <div class="trust-face">🔧</div>
+        <div class="trust-face">🌿</div>
+        <div class="trust-face">🍞</div>
+      </div>
+      <div class="trust-text"><strong>47 small businesses</strong> already on the waitlist</div>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="phone-wrap">
+      <div class="phone-glow"></div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="p-statusbar">
+            <span>9:41</span>
+            <span>●●●</span>
+          </div>
+          <div class="p-contact-bar">
+            <div class="p-contact-name">Vera · Caption Pilot ✦</div>
+            <div class="p-contact-sub">Your social media manager</div>
+          </div>
+          <div class="p-messages">
+            <div class="pm v">
+              <div class="who">VERA</div>
+              Hey Cassy! I spotted your new tulip photos 🌷 Here's a caption draft — ready when you are.
+            </div>
+            <div class="pm v">
+              <div class="who">VERA</div>
+              <em>"Spring has arrived at the farm. The tunnels are filling up — tulips are just the beginning. Come find us at the market Saturday!"</em>
+            </div>
+            <div class="pm u">Looks great! Post it 🙌</div>
+            <div class="pm v">
+              <div class="who">VERA</div>
+              Done! ✓ Posted with trending folk music for the Reel. <span class="post-link">instagram.com/p/...</span>
+            </div>
+            <div class="pm v">
+              <div class="who">VERA</div>
+              I'll let you know when the next photo comes through. You're all set 😊
+            </div>
+          </div>
+          <div class="p-input-bar">
+            <div class="p-input">Message Vera...</div>
+            <div class="p-send">↑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Exhale band -->
+<div class="exhale-band">
+  <h2>Stop dreading it.</h2>
+  <p>Most business owners know they should be posting — they just don't want to deal with it. Vera takes that weight off your plate, permanently. No login required. No learning curve. Just drop a photo.</p>
+</div>
+
+<!-- How it works -->
+<div id="how" class="section">
+  <div style="text-align:center;">
+    <div class="eyebrow">How it works</div>
+    <h2>Up and running<br>in five minutes.</h2>
+    <p class="section-sub center">No dashboard to learn. No tutorial to sit through. Vera handles everything from a simple text message.</p>
+  </div>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">01</div>
+      <div class="step-icon-wrap">📱</div>
+      <h3>Meet Vera over text</h3>
+      <p>Vera asks you five quick questions about your business — what you sell, your vibe, who your customers are. One conversation, your brand voice captured forever.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">02</div>
+      <div class="step-icon-wrap">📸</div>
+      <h3>Share a photo album</h3>
+      <p>Create a shared iCloud album and invite Vera. Every photo or video you add gets picked up automatically. You'll never need to open Instagram again.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">03</div>
+      <div class="step-icon-wrap">✉️</div>
+      <h3>Approve by text</h3>
+      <p>Vera writes the caption, picks music for Reels, and sends you a preview. Reply YES and it posts. Ask for a change and she fixes it on the spot. That's it.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Before / After -->
+<div class="section">
+  <div style="text-align:center;">
+    <div class="eyebrow">The difference</div>
+    <h2>Before and after.</h2>
+    <p class="section-sub center">Here's what changes when Vera starts handling your social media.</p>
+  </div>
+  <div class="ba-grid">
+    <div class="ba-card ba-before">
+      <div class="ba-label">Before Caption Pilot</div>
+      <ul class="ba-list">
+        <li>Dreading Monday because you need to post something</li>
+        <li>Opening Instagram and going blank on what to write</li>
+        <li>Forgetting to post for three weeks and starting over</li>
+        <li>Losing an hour to captions that don't sound like you</li>
+        <li>Paying someone $500/mo to do it half as well</li>
+        <li>Guilt every time someone asks if you're on social</li>
+      </ul>
+    </div>
+    <div class="ba-card ba-after">
+      <div class="ba-label">After Caption Pilot</div>
+      <ul class="ba-list">
+        <li>Take a photo at work, drop it in the album, done</li>
+        <li>Get a text from Vera with a caption ready to approve</li>
+        <li>Post consistently without thinking about it once</li>
+        <li>Captions that actually sound like your business</li>
+        <li>Reels with trending music, automatically</li>
+        <li>More time for the work you actually love</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Vera feature -->
+<div id="vera" class="section">
+  <div class="vera-wrap">
+    <div class="vera-left">
+      <div class="vera-badge">✦ Meet Vera</div>
+      <h2>Your AI manager,<br>available 24/7.</h2>
+      <p class="section-sub" style="margin-top:8px">Vera isn't a chatbot or a dashboard. She's a real AI team member who learns your business, writes in your voice, and handles posting so you never have to think about it.</p>
+      <div class="vera-feats">
+        <div class="vera-feat">
+          <div class="feat-icon">🎯</div>
+          <div class="feat-text">
+            <h4>Writes in your voice</h4>
+            <p>Vera learns your brand from your onboarding conversation and stays consistent. Every caption sounds like you — not a robot.</p>
+          </div>
+        </div>
+        <div class="vera-feat">
+          <div class="feat-icon">🎵</div>
+          <div class="feat-text">
+            <h4>Picks music for Reels</h4>
+            <p>Automatically selects trending tracks from Instagram's music library that match your brand and what's performing in your niche.</p>
+          </div>
+        </div>
+        <div class="vera-feat">
+          <div class="feat-icon">💬</div>
+          <div class="feat-text">
+            <h4>Always reachable</h4>
+            <p>Need to change something or post something special? Just text Vera. She responds in seconds — any hour, any day.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="vera-right">
+      <div class="chat-demo">
+        <div class="cd-row">
+          <div class="cd-avi vera">✦</div>
+          <div class="cd-bubble vera">Hey! Your new photos just came through — I love them 🌷<br><br>Here's your caption draft:<br><br><em>"Spring is here and the tunnels are waking up. Poppies are first, tulips are right behind. Stop by Saturday 9–5."</em><br><br>Reply YES to post, or tell me what to change.</div>
+        </div>
+        <div class="cd-row right">
+          <div class="cd-avi user">👤</div>
+          <div class="cd-bubble user">Add our hours — we close at 4 on Saturdays now</div>
+        </div>
+        <div class="cd-row">
+          <div class="cd-avi vera">✦</div>
+          <div class="cd-bubble vera">Updated! ✓ <em>"...Stop by Saturday, 9–4."</em><br><br>Ready to post?</div>
+        </div>
+        <div class="cd-row right">
+          <div class="cd-avi user">👤</div>
+          <div class="cd-bubble user">Yes! 🌸</div>
+        </div>
+        <div class="cd-row">
+          <div class="cd-avi vera">✦</div>
+          <div class="cd-bubble vera">Posted ✅ I added folk music for the Reel — it fits perfectly. You're all set!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Testimonials -->
+<div class="section section-center">
+  <div class="eyebrow">Early access</div>
+  <h2>Already working<br>in the real world.</h2>
+  <p class="section-sub center">Built and tested on real accounts before we opened the waitlist.</p>
+  <div class="test-grid">
+    <div class="test-card">
+      <div class="test-stars">★★★★★</div>
+      <p class="test-quote">"I just add photos to my album and Vera handles everything. I've posted more in the last two weeks than the whole past year. It honestly changed how I feel about social media."</p>
+      <div class="test-author">
+        <div class="test-avi">🌸</div>
+        <div>
+          <div class="test-name">Cassy W.</div>
+          <div class="test-biz">Heartland Flower Farm</div>
+        </div>
+      </div>
+    </div>
+    <div class="test-card">
+      <div class="test-stars">★★★★★</div>
+      <p class="test-quote">"The captions actually sound like me — not some generic AI. And having La Grange play under my restoration Reels? That was Vera's idea. The engagement has been incredible."</p>
+      <div class="test-author">
+        <div class="test-avi">🔧</div>
+        <div>
+          <div class="test-name">Mike W.</div>
+          <div class="test-biz">Mike's Custom Classics</div>
+        </div>
+      </div>
+    </div>
+    <div class="test-card">
+      <div class="test-stars">★★★★★</div>
+      <p class="test-quote">"Setup took five minutes over text. No tutorial, no settings. I sent Vera one message and she just... started posting. It's the most useful thing I've added to my business in years."</p>
+      <div class="test-author">
+        <div class="test-avi">🌿</div>
+        <div>
+          <div class="test-name">Sarah M.</div>
+          <div class="test-biz">Meadow & Bloom Co.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:center;">
+    <div class="live-pill">
+      <div class="live-dot"></div>
+      Live right now: Heartland Flower Farm posted today via Caption Pilot —
+      <a href="https://www.instagram.com/p/DVwGwByjg40/" target="_blank">view post →</a>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- Pricing -->
+<div id="pricing" class="section section-center">
+  <div class="eyebrow">Pricing</div>
+  <h2>Simple, honest pricing.</h2>
+  <p class="section-sub center">No hidden fees. No annual commitments to start. Cancel any time.</p>
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="plan-tier">Starter</div>
+      <div class="plan-amt">$149<span>/mo</span></div>
+      <div class="plan-desc">Perfect for one business account</div>
+      <ul class="plan-list">
+        <li>1 Instagram account</li>
+        <li>Unlimited posts + Reels</li>
+        <li>AI captions in your voice</li>
+        <li>Music for Reels, automatically</li>
+        <li>Text approvals with Vera</li>
+        <li>iCloud album integration</li>
+        <li class="na">Multiple accounts</li>
+        <li class="na">Analytics</li>
+      </ul>
+      <a href="#waitlist" class="btn btn-outline" style="width:100%;justify-content:center;">Join waitlist</a>
+    </div>
+    <div class="price-card featured">
+      <div class="featured-tag">Most popular</div>
+      <div class="plan-tier">Growth</div>
+      <div class="plan-amt">$249<span>/mo</span></div>
+      <div class="plan-desc">For businesses with multiple accounts</div>
+      <ul class="plan-list">
+        <li>Up to 3 Instagram accounts</li>
+        <li>Unlimited posts + Reels</li>
+        <li>AI captions in your voice</li>
+        <li>Music for Reels, automatically</li>
+        <li>Text approvals with Vera</li>
+        <li>iCloud album integration</li>
+        <li>Basic analytics</li>
+        <li>Priority support</li>
+      </ul>
+      <a href="#waitlist" class="btn btn-sage" style="width:100%;justify-content:center;">Join waitlist</a>
+    </div>
+    <div class="price-card">
+      <div class="plan-tier">Agency</div>
+      <div class="plan-amt">$499<span>/mo</span></div>
+      <div class="plan-desc">Run Caption Pilot for your clients</div>
+      <ul class="plan-list">
+        <li>Up to 10 accounts</li>
+        <li>Unlimited posts + Reels</li>
+        <li>White-label Vera (your brand)</li>
+        <li>Music for Reels, automatically</li>
+        <li>Text approvals with Vera</li>
+        <li>iCloud album integration</li>
+        <li>Full analytics dashboard</li>
+        <li>Dedicated onboarding support</li>
+      </ul>
+      <a href="#waitlist" class="btn btn-outline" style="width:100%;justify-content:center;">Join waitlist</a>
+    </div>
+  </div>
+</div>
+
+<!-- Waitlist -->
+<div id="waitlist" class="waitlist-bg">
+  <div class="waitlist-inner">
+    <div class="eyebrow" style="display:block;margin-bottom:16px">Early access</div>
+    <h2 style="font-size:clamp(2rem,4vw,2.8rem)">First 100 get<br>50% off. Forever.</h2>
+    <p class="section-sub center" style="margin-top:12px">Join the waitlist — no credit card, no commitment. We'll text you from Vera when you're up.</p>
+    <form class="waitlist-form" id="waitlist-form" onsubmit="submitWaitlist(event)">
+      <input type="tel" id="wl-phone" placeholder="Your phone number" required>
+      <button type="submit" class="btn btn-sage" style="white-space:nowrap;padding:14px 28px;">Get early access →</button>
+    </form>
+    <div class="form-note">Vera will text you directly. No spam. Unsubscribe any time.</div>
+    <div id="form-success">✓ You're on the list — Vera will be in touch soon!</div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <span class="footer-logo">caption <span>pilot</span></span>
+  <nav>
+    <a href="#how">How it works</a>
+    <a href="#vera">Meet Vera</a>
+    <a href="#pricing">Pricing</a>
+    <a href="mailto:hello@captionpilot.app">Contact</a>
+  </nav>
+  <p class="footer-copy">© 2026 Caption Pilot. Built for real businesses, not tech people.</p>
+</footer>
+
+<script>
+  window.addEventListener('scroll', () => {
+    document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
+  });
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); }
+    });
+  });
+  function submitWaitlist(e) {
+    e.preventDefault();
+    document.getElementById('waitlist-form').style.display = 'none';
+    document.getElementById('form-success').style.display = 'block';
+  }
+</script>
+
+</body>
+</html>
