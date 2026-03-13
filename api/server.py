@@ -11,13 +11,19 @@ import secrets
 import subprocess
 from pathlib import Path
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, Response
 import uvicorn
+
+try:
+    import pytz as _pytz
+    _HAS_PYTZ = True
+except ImportError:
+    _HAS_PYTZ = False
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 API_DIR = Path(__file__).parent.resolve()
@@ -653,6 +659,86 @@ def generate_approval_token(account: str, auth=Depends(verify_token)):
 
     return {"token": token, "url": url, "account": account, "scheduled_time": scheduled_time}
 
+@app.get("/api/schedule/recommendations/{account}")
+def schedule_recommendations(account: str):
+    """Return 4 AI-recommended posting times with reasoning for this account. No auth required."""
+    cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
+    if not cfg_path.exists():
+        raise HTTPException(status_code=404, detail="Account not found")
+    cfg = read_json(cfg_path)
+
+    if _HAS_PYTZ:
+        tz = _pytz.timezone("America/Chicago")
+        now = datetime.now(tz)
+    else:
+        from datetime import timezone as _tz
+        import time as _time
+        now = datetime.now(_tz.utc).astimezone()
+
+    h, m = map(int, cfg.get("optimal_post_time", "21:00").split(":"))
+    niche = cfg.get("niche", "general")
+
+    # Option 1: next optimal window (today if not passed, else tomorrow)
+    target_today = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    option1 = target_today if target_today > now + timedelta(minutes=30) else target_today + timedelta(days=1)
+
+    # Option 2: day after tomorrow at optimal time
+    option2 = option1 + timedelta(days=1)
+
+    # Option 3: next weekend day at a niche-specific time
+    # For flower/farm/lifestyle: Saturday 9 AM; for auto/shop: Saturday 7 PM
+    weekend_hour = 9 if any(k in niche for k in ("flower", "farm", "lifestyle")) else 19
+    days_until_saturday = (5 - now.weekday()) % 7 or 7
+    option3 = (now + timedelta(days=days_until_saturday)).replace(
+        hour=weekend_hour, minute=0, second=0, microsecond=0
+    )
+
+    # Option 4: next Thursday evening (typically high-engagement)
+    days_until_thursday = (3 - now.weekday()) % 7 or 7
+    option4 = (now + timedelta(days=days_until_thursday)).replace(
+        hour=h, minute=0, second=0, microsecond=0
+    )
+
+    def friendly(dt: datetime) -> str:
+        """e.g. 'Tonight at 9:00 PM' or 'Saturday, Mar 15 at 9:00 AM'"""
+        if dt.date() == now.date():
+            return f"Tonight at {dt.strftime('%-I:%M %p')}"
+        elif dt.date() == (now + timedelta(days=1)).date():
+            return f"Tomorrow at {dt.strftime('%-I:%M %p')}"
+        else:
+            return dt.strftime("%A, %b %-d at %-I:%M %p")
+
+    niche_weekend_reason = (
+        "Farmers market days bring peak local engagement"
+        if any(k in niche for k in ("flower", "farm"))
+        else "Weekend browsing drives higher reach for shop content"
+    )
+
+    recommendations = [
+        {
+            "label": friendly(option1),
+            "iso": option1.isoformat(),
+            "reason": "Your regular posting window — followers expect content here",
+        },
+        {
+            "label": friendly(option2),
+            "iso": option2.isoformat(),
+            "reason": "Extra day to build anticipation — still hits your peak window",
+        },
+        {
+            "label": friendly(option3),
+            "iso": option3.isoformat(),
+            "reason": niche_weekend_reason,
+        },
+        {
+            "label": friendly(option4),
+            "iso": option4.isoformat(),
+            "reason": "Thursday evening is typically high-engagement for most accounts",
+        },
+    ]
+    return {"account": account, "recommendations": recommendations}
+
+
 @app.get("/api/approve/{token}")
 def get_approval(token: str):
     """Public endpoint — returns selection data for the approval page. No admin auth needed."""
@@ -776,6 +862,13 @@ async def confirm_approval(token: str, request: Request):
         approved_caption = body.get("caption")
         if approved_caption:
             acct_state["approved_caption"] = approved_caption
+        # Store custom scheduled_time if provided (ISO 8601 string)
+        scheduled_time = body.get("scheduled_time")
+        if scheduled_time:
+            acct_state["scheduled_time"] = scheduled_time
+        elif "scheduled_time" in acct_state:
+            # Clear any previous custom time if not re-specified
+            del acct_state["scheduled_time"]
         acct_state["status"] = "scheduled"
         acct_state["approved_at"] = utcnow()
         acct_state["approved_via"] = "web"
@@ -791,9 +884,11 @@ async def confirm_approval(token: str, request: Request):
         log_event(account, "post_scheduled", {
             "selected": acct_state.get("selected", []),
             "hero_index": acct_state.get("hero_index"),
+            "scheduled_time": scheduled_time,
         })
 
-        return {"ok": True, "message": "Scheduled for 6 PM."}
+        msg = f"Scheduled for {scheduled_time}." if scheduled_time else "Scheduled for 6 PM."
+        return {"ok": True, "message": msg}
 
     elif action == "post":
         # Accept whatever selected list the page sends
