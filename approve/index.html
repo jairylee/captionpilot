@@ -526,7 +526,7 @@
     try {
       await fetch(`${API}/api/approve/${TOKEN}/confirm`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'skip_unselected', skip_indices: unselected })
       });
       // Update UI — dim skipped cards
