@@ -352,7 +352,7 @@
 
     try {
       const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}`, {
-        headers: { 'User-Agent': UA },
+        headers: {  },
       });
 
       if (res.status === 404) { showView('view-404'); return; }
@@ -400,7 +400,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': UA,
+          
         },
         body: JSON.stringify({ action }),
       });

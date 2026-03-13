@@ -318,12 +318,25 @@
     </div>
   </div>
 
+  <!-- Caption review panel (hidden until Continue is tapped) -->
+  <div class="bottom-bar" id="caption-bar" hidden style="flex-direction:column;gap:12px;padding:20px 16px 28px;background:var(--bg)">
+    <div style="font-size:0.7rem;font-weight:600;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;">Caption Preview</div>
+    <textarea id="caption-text" rows="5" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:0.9rem;color:var(--text);background:#fff;resize:vertical;line-height:1.5"></textarea>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" id="btn-regenerate" onclick="regenerateCaption()" style="flex:1;font-size:0.85rem;border:1.5px solid var(--border);color:var(--muted)">↺ Regenerate</button>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" id="btn-post-now"  onclick="confirmAction('post')"     style="flex:1">Post Now</button>
+      <button class="btn btn-primary"   id="btn-schedule"  onclick="confirmAction('schedule')" style="flex:2">Schedule for 6 PM</button>
+    </div>
+    <button onclick="showPhotoStep()" style="background:none;border:none;color:var(--muted);font-size:0.8rem;cursor:pointer;padding:0">← Back to photos</button>
+  </div>
+
   <!-- Sticky bottom bar -->
   <div class="bottom-bar" id="bottom-bar" hidden>
     <div class="bottom-count" id="bottom-count"><strong>0</strong> selected</div>
     <button class="btn btn-ghost"     id="btn-skip"      onclick="skipUnselected()" style="font-size:0.8rem;padding:8px 14px;color:var(--muted);border:1.5px solid var(--border)">Skip rest</button>
-    <button class="btn btn-secondary" id="btn-post-now" onclick="confirmAction('post')" disabled>Post Now</button>
-    <button class="btn btn-primary"   id="btn-schedule"  onclick="confirmAction('schedule')" disabled>Schedule for 6 PM</button>
+    <button class="btn btn-primary"   id="btn-continue"  onclick="showCaptionStep()" disabled>Continue →</button>
   </div>
 
 <script>
@@ -337,7 +350,8 @@
 
   // ─── Fetch helpers ───────────────────────────────────────────────────────
   function apiFetch(url, opts = {}) {
-    opts.headers = Object.assign({ 'User-Agent': UA }, opts.headers || {});
+    // Note: User-Agent is a forbidden header in browser fetch — don't set it
+    opts.headers = opts.headers || {};
     return fetch(url, opts);
   }
 
@@ -495,8 +509,7 @@
     }
 
     const dis = (n === 0);
-    document.getElementById('btn-schedule').disabled  = dis;
-    document.getElementById('btn-post-now').disabled  = dis;
+    document.getElementById('btn-continue').disabled  = dis;
 
     // Video note
     const note = document.getElementById('video-note');
@@ -526,6 +539,51 @@
     } catch(e) { /* silent — state will reconcile */ }
   }
 
+// ─── Caption step ─────────────────────────────────────────────────────────
+  function showPhotoStep() {
+    document.getElementById('bottom-bar').hidden  = false;
+    document.getElementById('caption-bar').hidden = true;
+  }
+
+  async function showCaptionStep() {
+    if (selected.length === 0) return;
+    document.getElementById('bottom-bar').hidden  = true;
+    document.getElementById('caption-bar').hidden = false;
+    const ta = document.getElementById('caption-text');
+    ta.value = 'Writing your caption…';
+    document.getElementById('btn-regenerate').disabled = true;
+    document.getElementById('btn-schedule').disabled   = true;
+    document.getElementById('btn-post-now').disabled   = true;
+    await fetchCaption();
+  }
+
+  async function fetchCaption() {
+    const ta = document.getElementById('caption-text');
+    try {
+      const res = await apiFetch(`${API}/api/approve/${TOKEN}/confirm`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'preview_caption', selected }),
+      });
+      const data = await res.json();
+      ta.value = data.caption || '(no caption returned)';
+    } catch(e) {
+      ta.value = '(caption generation failed — you can type your own)';
+    }
+    document.getElementById('btn-regenerate').disabled = false;
+    document.getElementById('btn-schedule').disabled   = false;
+    document.getElementById('btn-post-now').disabled   = false;
+  }
+
+  async function regenerateCaption() {
+    const ta = document.getElementById('caption-text');
+    ta.value = 'Rewriting…';
+    document.getElementById('btn-regenerate').disabled = true;
+    document.getElementById('btn-schedule').disabled   = true;
+    document.getElementById('btn-post-now').disabled   = true;
+    await fetchCaption();
+  }
+
 // ─── Confirm action ──────────────────────────────────────────────────────
   async function confirmAction(action) {
     if (selected.length === 0) return;
@@ -548,7 +606,10 @@
       const res = await apiFetch(`${API}/api/approve/${TOKEN}/confirm`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ action, selected, hero_index }),
+        body:    JSON.stringify({
+          action, selected, hero_index,
+          caption: document.getElementById('caption-text')?.value || undefined
+        }),
       });
 
       if (res.status === 410) { showOnly('state-used'); return; }

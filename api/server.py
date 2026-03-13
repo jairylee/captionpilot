@@ -4,6 +4,8 @@ FastAPI backend for managing Instagram automation accounts.
 Port: 8766
 """
 import os
+import io
+import sys
 import json
 import secrets
 import subprocess
@@ -14,7 +16,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 import uvicorn
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
@@ -24,6 +26,30 @@ ACCOUNT_CONFIGS_DIR = WORKSPACE / "account_configs"
 LOGS_DIR = WORKSPACE / "logs"
 SCRIPTS_DIR = WORKSPACE / "scripts"
 TOKEN_FILE = API_DIR / "admin_token.txt"
+
+# ─── Album paths for thumbnails ───────────────────────────────────────────────
+ALBUM_PATHS = {
+    "mikescustomclassics": Path(
+        "/Users/jairylee/Pictures/Photos Library.photoslibrary"
+        "/scopes/cloudsharing/data/22804333864"
+        "/17C6FBB1-E03B-452A-8D32-43DD5E6B36AB"
+    ),
+    "heartland_flower": Path(
+        "/Users/jairylee/Pictures/Photos Library.photoslibrary"
+        "/scopes/cloudsharing/data/22804333864"
+        "/29B0E981-7286-4275-8E40-9BF2A8F0F329"
+    ),
+}
+
+# ─── Audit logger (optional import — won't crash if missing) ─────────────────
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
+try:
+    from audit_logger import log_event, get_events as _get_audit_events
+except ImportError:
+    def log_event(account, event, data):  # noqa: E301
+        pass
+    def _get_audit_events(account, limit=100):  # noqa: E301
+        return []
 
 # ─── Token auth ───────────────────────────────────────────────────────────────
 def get_or_create_token() -> str:
@@ -268,9 +294,11 @@ def get_account_posts(account: str, auth=Depends(verify_token)):
                     "notes": fdata.get("notes", ""),
                     "phash": fdata.get("phash"),
                 })
-    # Include posted_batches from legacy state
-    legacy = read_json(WORKSPACE / ".instagram-state.json")
-    batches = legacy.get("posted_batches", [])
+    # Legacy batches are MCC-only — don't pollute other accounts
+    batches = []
+    if account == "mikescustomclassics":
+        legacy = read_json(WORKSPACE / ".instagram-state.json")
+        batches = legacy.get("posted_batches", [])
     return {"posts": posts, "batches": batches}
 
 
@@ -309,6 +337,68 @@ def get_log(name: str, n: int = 200, auth=Depends(verify_token)):
 @app.get("/api/pending/selections")
 def get_pending_selections(auth=Depends(verify_token)):
     return read_json(get_selection_state_path())
+
+
+@app.get("/api/pending/selections/refresh")
+def refresh_pending_selections(auth=Depends(verify_token)):
+    """Reconcile stale pending state and return refreshed data."""
+    sel_path = get_selection_state_path()
+    sel_state = read_json(sel_path)
+    tokens = _load_tokens()
+    changed = False
+
+    for account, acct_state in sel_state.items():
+        if acct_state.get("status") != "pending":
+            continue
+
+        # If any token for this account has been used → mark completed
+        for tok_meta in tokens.values():
+            if tok_meta.get("account") == account and tok_meta.get("used"):
+                acct_state["status"] = "completed"
+                acct_state["reconciled_at"] = utcnow()
+                changed = True
+                break
+
+        # If still pending, check whether all candidates are skipped/posted in state manager
+        if acct_state.get("status") == "pending":
+            try:
+                sys.path.insert(0, str(WORKSPACE / "scripts"))
+                from state_manager import StateManager  # type: ignore
+                sm = StateManager(account)
+                scores = acct_state.get("scores", [])
+                if scores and all(
+                    sm.is_posted(Path(s.get("path", "")).name) for s in scores
+                ):
+                    acct_state["status"] = "stale"
+                    acct_state["reconciled_at"] = utcnow()
+                    changed = True
+            except Exception:
+                pass
+
+        # Fallback: check whether all candidate files are gone from disk
+        if acct_state.get("status") == "pending":
+            scores = acct_state.get("scores", [])
+            if scores and all(not Path(s.get("path", "")).exists() for s in scores):
+                acct_state["status"] = "stale"
+                acct_state["reconciled_at"] = utcnow()
+                changed = True
+
+    if changed:
+        write_json(sel_path, sel_state)
+
+    return sel_state
+
+
+@app.delete("/api/pending/selections/{account}")
+def clear_selection_state(account: str, auth=Depends(verify_token)):
+    """Remove stale selection state for a specific account."""
+    sel_path = get_selection_state_path()
+    sel_state = read_json(sel_path)
+    if account not in sel_state:
+        raise HTTPException(status_code=404, detail=f"No selection state for '{account}'")
+    del sel_state[account]
+    write_json(sel_path, sel_state)
+    return {"ok": True, "removed": account}
 
 
 @app.post("/api/pending/selections/{account}")
@@ -383,6 +473,38 @@ def get_enhancement_state(account: str, auth=Depends(verify_token)):
     return read_json(get_enhancement_state_path(account))
 
 
+@app.get("/api/thumbnails/{account}/{filename:path}")
+def serve_thumbnail(account: str, filename: str, auth=Depends(verify_token)):
+    """Return a 120×120 JPEG thumbnail for a media file."""
+    if ".." in filename or filename.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    album_path = ALBUM_PATHS.get(account)
+    if not album_path:
+        raise HTTPException(status_code=404, detail=f"No album path configured for '{account}'")
+
+    file_path = album_path / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        from PIL import Image
+        img = Image.open(str(file_path))
+        img.thumbnail((120, 120))
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, format="JPEG", quality=60)
+        buf.seek(0)
+        return Response(
+            content=buf.read(),
+            media_type="image/jpeg",
+            headers={"Cache-Control": "max-age=86400"},
+        )
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Pillow (PIL) not installed")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Thumbnail error: {e}")
+
+
 # ─── Approval token system ────────────────────────────────────────────────────
 import hashlib
 import secrets as _secrets
@@ -422,6 +544,8 @@ def generate_approval_token(account: str, auth=Depends(verify_token)):
     cfg = read_json(ACCOUNT_CONFIGS_DIR / f"{account}.json")
     scheduled_time = cfg.get("post_time", "6:00 PM CDT")
 
+    log_event(account, "approval_sent", {"url": url, "token": token[:8] + "…"})
+
     return {"token": token, "url": url, "account": account, "scheduled_time": scheduled_time}
 
 @app.get("/api/approve/{token}")
@@ -435,6 +559,7 @@ def get_approval(token: str):
         raise HTTPException(status_code=410, detail="This approval link has already been used")
 
     account = meta["account"]
+    log_event(account, "approval_opened", {"token": token[:8] + "…"})
     sel_path = get_selection_state_path()
     sel_state = read_json(sel_path)
     if account not in sel_state:
@@ -503,7 +628,7 @@ async def confirm_approval(token: str, request: Request):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    action = body.get("action", "post")  # post | swap | add | remove
+    action = body.get("action", "post")  # preview_caption | post | schedule | swap | add | remove | skip_unselected
     photo_num = body.get("photo_num")
     selected = body.get("selected")  # full list of selected indices (from page)
 
@@ -514,13 +639,37 @@ async def confirm_approval(token: str, request: Request):
 
     acct_state = sel_state[account]
 
-    if action == "schedule":
+    if action == "preview_caption":
+        # Generate caption for the current selection without posting — returns caption text
+        if selected is not None:
+            acct_state["selected"] = selected
+        scores = acct_state.get("scores", [])
+        sel_indices = acct_state.get("selected", list(range(len(scores))))
+        sel_paths = [scores[i]["path"] for i in sel_indices if i < len(scores)]
+        media_items = [{"staged_path": p, "filename": Path(p).name, "comment": None}
+                       for p in sel_paths if Path(p).exists()]
+        try:
+            sys.path.insert(0, str(WORKSPACE / "scripts"))
+            cfg_path = WORKSPACE / "account_configs" / f"{account}.json"
+            cfg = read_json(cfg_path) or {}
+            cfg.setdefault("account", account)
+            from instagram_post import generate_caption  # type: ignore
+            caption = generate_caption(media_items, cfg)
+        except Exception as e:
+            caption = f"[Caption generation failed: {e}]"
+        return {"caption": caption, "photo_count": len(media_items)}
+
+    elif action == "schedule":
         # Save selection state, mark scheduled — do NOT spawn instagram_post.py
         if selected is not None:
             acct_state["selected"] = selected
         hero_index = body.get("hero_index")
         if hero_index is not None:
             acct_state["hero_index"] = hero_index
+        # Store user-reviewed caption if provided
+        approved_caption = body.get("caption")
+        if approved_caption:
+            acct_state["approved_caption"] = approved_caption
         acct_state["status"] = "scheduled"
         acct_state["approved_at"] = utcnow()
         acct_state["approved_via"] = "web"
@@ -532,6 +681,11 @@ async def confirm_approval(token: str, request: Request):
         meta["used_at"] = utcnow()
         tokens[token] = meta
         _save_tokens(tokens)
+
+        log_event(account, "post_scheduled", {
+            "selected": acct_state.get("selected", []),
+            "hero_index": acct_state.get("hero_index"),
+        })
 
         return {"ok": True, "message": "Scheduled for 6 PM."}
 
@@ -554,9 +708,16 @@ async def confirm_approval(token: str, request: Request):
         tokens[token] = meta
         _save_tokens(tokens)
 
+        log_event(account, "photos_selected", {
+            "selected": acct_state.get("selected", []),
+            "hero_index": acct_state.get("hero_index"),
+            "count": len(acct_state.get("selected", [])),
+        })
+
         # Trigger the pipeline — synchronous so mark_posted() runs before we return
         script_path = WORKSPACE / "scripts" / "instagram_post.py"
         cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
+        pipeline_ok = False
         try:
             result = subprocess.run(
                 ["python3", str(script_path), "--account", account, "--config", str(cfg_path)],
@@ -565,6 +726,7 @@ async def confirm_approval(token: str, request: Request):
                 capture_output=True,
                 text=True,
             )
+            pipeline_ok = result.returncode == 0
             if result.returncode != 0:
                 print(f"[admin] instagram_post.py exited {result.returncode} for {account}")
                 print(f"[admin] stdout: {result.stdout[-2000:]}")
@@ -576,6 +738,10 @@ async def confirm_approval(token: str, request: Request):
             print(f"[admin] instagram_post.py timed out for {account} — state will reconcile on next sync")
         except Exception as e:
             print(f"[admin] instagram_post.py launch error for {account}: {e}")
+
+        log_event(account, "post_completed" if pipeline_ok else "post_skipped", {
+            "pipeline_ok": pipeline_ok,
+        })
 
         return {"ok": True, "message": "Approved! Post is being published now."}
 
@@ -775,6 +941,151 @@ async def confirm_video_approval(token: str, request: Request):
 
     msg = "Publishing as a Reel!" if action == "reel" else "Publishing as a Feed video!"
     return {"ok": True, "message": msg}
+
+
+# ─── Conversation endpoint ────────────────────────────────────────────────────
+
+BB_SERVER = "https://sauce-place-gaming-awesome.trycloudflare.com"
+BB_PASSWORD = "2JDT8bGV5IJ6"
+
+
+def _audit_event_to_message(ev: dict) -> "dict | None":
+    event = ev.get("event", "")
+    ts = ev.get("ts", "")
+    data = ev.get("data", {})
+    if not ts:
+        return None
+    if event == "approval_sent":
+        url = data.get("url", "")
+        text = f"📸 Sent approval link: {url}" if url else "📸 Sent approval link"
+        return {"ts": ts, "kind": "outbound", "text": text, "source": "audit", "event_type": event}
+    elif event == "approval_opened":
+        return {"ts": ts, "kind": "system", "text": "Link opened", "source": "audit", "event_type": event}
+    elif event == "photos_selected":
+        count = data.get("count", len(data.get("selected", [])))
+        return {"ts": ts, "kind": "system", "text": f"{count} photos selected", "source": "audit", "event_type": event}
+    elif event == "post_scheduled":
+        return {"ts": ts, "kind": "system", "text": "Scheduled for 6 PM", "source": "audit", "event_type": event}
+    elif event == "post_completed":
+        url = data.get("post_url", data.get("url", ""))
+        text = f"✅ Posted to Instagram: {url}" if url else "✅ Posted to Instagram"
+        return {"ts": ts, "kind": "system", "text": text, "source": "audit", "event_type": event}
+    elif event == "post_skipped":
+        return {"ts": ts, "kind": "system", "text": "⏭ Post skipped", "source": "audit", "event_type": event}
+    elif event == "video_decision":
+        decision = data.get("decision", data.get("action", ""))
+        return {"ts": ts, "kind": "system", "text": f"🎬 Video: {decision}", "source": "audit", "event_type": event}
+    return None
+
+
+def _fetch_bb_messages(handle: str) -> list:
+    import urllib.request
+    import urllib.parse
+    from datetime import timedelta
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+        # List chats
+        chat_url = f"{BB_SERVER}/api/v1/chat?password={BB_PASSWORD}&limit=100"
+        req = urllib.request.Request(chat_url, headers={"Accept": "application/json", "User-Agent": "CaptionPilot/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            chats_data = json.loads(resp.read())
+        chats = chats_data.get("data", [])
+        # Find chat matching handle
+        target_guid = None
+        for chat in chats:
+            participants = chat.get("participants", [])
+            for p in participants:
+                if p.get("address", "").lower() == handle.lower():
+                    target_guid = chat.get("guid")
+                    break
+            if target_guid:
+                break
+        if not target_guid:
+            return []
+        # Get messages
+        encoded_guid = urllib.parse.quote(target_guid, safe="")
+        msg_url = (f"{BB_SERVER}/api/v1/chat/{encoded_guid}/message"
+                   f"?password={BB_PASSWORD}&limit=50&sort=DESC")
+        req2 = urllib.request.Request(msg_url, headers={"Accept": "application/json", "User-Agent": "CaptionPilot/1.0"})
+        with urllib.request.urlopen(req2, timeout=10) as resp2:
+            msgs_data = json.loads(resp2.read())
+        messages = []
+        for msg in msgs_data.get("data", []):
+            date_val = msg.get("dateCreated") or msg.get("date")
+            if date_val is None:
+                continue
+            if isinstance(date_val, (int, float)):
+                ts_dt = datetime.fromtimestamp(date_val / 1000, tz=timezone.utc)
+            else:
+                try:
+                    ts_dt = datetime.fromisoformat(str(date_val).replace("Z", "+00:00"))
+                except Exception:
+                    continue
+            if ts_dt < cutoff:
+                continue
+            text = msg.get("text") or ""
+            is_from_me = msg.get("isFromMe", False)
+            kind = "outbound" if is_from_me else "inbound"
+            messages.append({
+                "ts": ts_dt.isoformat(),
+                "kind": kind,
+                "text": text,
+                "source": "bluebubbles",
+                "event_type": None,
+            })
+        return messages
+    except Exception as e:
+        print(f"[conversation] BlueBubbles fetch failed for handle={handle}: {e}")
+        return []
+
+
+@app.get("/api/conversation/{account}")
+def get_conversation(account: str, auth=Depends(verify_token)):
+    """Return unified iMessage-style conversation thread for an account."""
+    cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
+    if not cfg_path.exists():
+        raise HTTPException(status_code=404, detail="Account not found")
+    cfg = read_json(cfg_path)
+    handle = cfg.get("imessage_handle", "")
+
+    messages = []
+
+    # 1. Read audit log
+    audit_path = WORKSPACE / f".audit-{account}.jsonl"
+    if audit_path.exists():
+        try:
+            for line in audit_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                    msg = _audit_event_to_message(ev)
+                    if msg:
+                        messages.append(msg)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # 2. Fetch BlueBubbles messages (graceful degradation if unavailable)
+    if handle:
+        bb_msgs = _fetch_bb_messages(handle)
+        messages.extend(bb_msgs)
+
+    # Sort by ts ascending
+    messages.sort(key=lambda m: m.get("ts", ""))
+
+    return {"messages": messages, "account": account, "handle": handle}
+
+
+# ─── Audit log endpoint ───────────────────────────────────────────────────────
+
+@app.get("/api/audit/{account}")
+def get_audit_log(account: str, limit: int = 100, auth=Depends(verify_token)):
+    """Return last N audit events for an account."""
+    events = _get_audit_events(account, limit)
+    return {"account": account, "events": events, "count": len(events)}
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────

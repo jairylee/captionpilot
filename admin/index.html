@@ -74,6 +74,45 @@
     .toast-item.success { border-left: 3px solid var(--green); }
     .toast-item.error { border-left: 3px solid var(--red); }
     @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── iMessage-style conversation bubbles ── */
+    .chat-scroll { overflow-y: auto; max-height: 600px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .chat-wrap { max-width: 480px; margin: 0 auto; width: 100%; }
+    .bubble-row { display: flex; flex-direction: column; }
+    .bubble-row.outbound { align-items: flex-end; }
+    .bubble-row.inbound  { align-items: flex-start; }
+    .bubble-row.system   { align-items: center; }
+    .bubble {
+      max-width: 72%;
+      padding: 10px 14px;
+      font-size: 14px;
+      line-height: 1.4;
+      word-break: break-word;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .bubble.outbound {
+      background: #5c7e6c;
+      color: #ffffff;
+      border-radius: 18px 18px 4px 18px;
+    }
+    .bubble.inbound {
+      background: #e9e9eb;
+      color: #1a1714;
+      border-radius: 18px 18px 18px 4px;
+    }
+    .bubble.system {
+      background: rgba(0,0,0,0.05);
+      color: #888;
+      border-radius: 12px;
+      font-size: 11px;
+      padding: 4px 12px;
+      max-width: 80%;
+    }
+    .bubble-ts { font-size: 10px; color: var(--text3); margin-top: 3px; padding: 0 4px; }
+    .bubble-row.outbound .bubble-ts { text-align: right; }
+    .bubble-row.inbound  .bubble-ts { text-align: left; }
+    .bubble-row.system   .bubble-ts { text-align: center; }
+    .chat-empty { text-align: center; color: var(--text3); font-size: 13px; padding: 40px 20px; }
   </style>
 </head>
 <body>
@@ -121,6 +160,14 @@
     <div onclick="showSection('cron')" class="nav-link" id="nav-cron">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       Cron
+    </div>
+    <div onclick="showSection('activity')" class="nav-link" id="nav-activity">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Activity
+    </div>
+    <div onclick="showSection('conversation')" class="nav-link" id="nav-conversation">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Conversation
     </div>
     <div style="flex:1"></div>
     <div style="padding:12px;border-top:1px solid var(--border);margin-top:8px">
@@ -233,6 +280,56 @@
       <div id="cronContent">Loading…</div>
     </div>
 
+    <!-- Conversation -->
+    <div id="section-conversation" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">Conversation</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">iMessage thread per account</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="conversationAccount" style="width:180px" onchange="loadConversation()">
+            <option value="">Select account…</option>
+          </select>
+          <button class="btn btn-ghost" onclick="loadConversation()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+      <div id="conversationContent">
+        <div style="color:var(--text3);font-size:13px">Select an account to view the conversation.</div>
+      </div>
+    </div>
+
+    <!-- Activity -->
+    <div id="section-activity" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">Activity</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">Audit log — approval and post events</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="activityAccount" style="width:180px" onchange="loadActivity()">
+            <option value="">All accounts…</option>
+          </select>
+          <select id="activityFilter" style="width:140px" onchange="renderActivityFeed()">
+            <option value="">All events</option>
+            <option value="approval">Approvals</option>
+            <option value="post">Posts</option>
+            <option value="error">Errors</option>
+          </select>
+          <button class="btn btn-ghost" onclick="loadActivity()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+      <div id="activityContent">
+        <div style="color:var(--text3);font-size:13px">Select an account to view activity.</div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -331,6 +428,8 @@ function showSection(name) {
   else if (name === 'pending') loadPending();
   else if (name === 'logs') loadLogList();
   else if (name === 'cron') loadCron();
+  else if (name === 'activity') initActivity();
+  else if (name === 'conversation') initConversation();
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -580,11 +679,18 @@ function renderMediaTab(account, files) {
   return `
     <div class="card" style="overflow:hidden">
       <table>
-        <thead><tr><th>File</th><th>Status</th><th>First Seen</th><th>Posted At</th><th>Method</th><th>pHash</th><th>Override</th></tr></thead>
+        <thead><tr><th></th><th>File</th><th>Status</th><th>First Seen</th><th>Posted At</th><th>Method</th><th>pHash</th><th>Override</th></tr></thead>
         <tbody>
           ${entries.map(([fname, fdata]) => `
             <tr>
-              <td style="font-family:monospace;font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(fname)}">${esc(fname)}</td>
+              <td style="width:44px;padding:6px 8px">
+                <img src="${API_BASE}/api/thumbnails/${encodeURIComponent(account)}/${encodeURIComponent(fname)}"
+                     width="36" height="36"
+                     style="object-fit:cover;border-radius:4px;background:var(--surface2)"
+                     onerror="this.style.display='none'"
+                     loading="lazy" />
+              </td>
+              <td style="font-family:monospace;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(fname)}">${esc(fname)}</td>
               <td><span class="badge ${statusBadge(fdata.status)}">${esc(fdata.status || '?')}</span></td>
               <td style="color:var(--text3);font-size:12px">${fdata.first_seen ? shortDate(fdata.first_seen) : '—'}</td>
               <td style="color:var(--text3);font-size:12px">${fdata.posted_at ? shortDate(fdata.posted_at) : '—'}</td>
@@ -695,35 +801,44 @@ async function runPipelineFromDetail(account, btn) {
 // ─── Pending Approvals ────────────────────────────────────────────────────────
 async function loadPending() {
   const container = document.getElementById('pendingContent');
-  container.innerHTML = '<div style="color:var(--text3);font-size:13px">Loading…</div>';
-  const data = await api('/api/pending/selections');
+  container.innerHTML = '<div style="color:var(--text3);font-size:13px">Refreshing approval state…</div>';
+  // Always refresh to reconcile stale data
+  const data = await api('/api/pending/selections/refresh');
   if (!data || !Object.keys(data).length) {
     container.innerHTML = '<div class="card" style="padding:24px;color:var(--text3);font-size:13px">No pending selections found.</div>';
     return;
   }
 
+  const staleStatuses = ['stale', 'completed', 'approved', 'scheduled'];
+
   container.innerHTML = Object.entries(data).map(([account, sel]) => {
     const scores = sel.scores || [];
     const selected = sel.selected || [];
     const status = sel.status || 'pending';
+    const isStale = staleStatuses.includes(status);
     return `
-      <div class="card" style="padding:24px;margin-bottom:16px">
+      <div class="card" style="padding:24px;margin-bottom:16px${isStale ? ';opacity:0.7' : ''}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div>
             <h3 style="font-size:16px;font-weight:600;margin:0">${esc(account)}</h3>
             <div style="font-size:12px;color:var(--text3);margin-top:2px">
               ${scores.length} photos scored · ${selected.length} selected · updated ${sel.ts ? relTime(sel.ts) : '?'}
+              ${sel.reconciled_at ? `<span style="color:var(--text3)"> · reconciled ${relTime(sel.reconciled_at)}</span>` : ''}
             </div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
-            <span class="badge ${status === 'approved' ? 'badge-green' : status === 'pending' ? 'badge-yellow' : 'badge-gray'}">${esc(status)}</span>
-            ${status !== 'approved' ? `
+            <span class="badge ${status === 'approved' || status === 'completed' ? 'badge-green' : status === 'pending' ? 'badge-yellow' : status === 'scheduled' ? 'badge-blue' : 'badge-gray'}">${esc(status)}</span>
+            ${status === 'pending' ? `
               <button class="btn btn-green" onclick="approveSelection('${account}', this)">
                 ✓ Approve & Post
               </button>
             ` : ''}
+            <button class="btn btn-danger btn-sm" onclick="clearStaleSelection('${account}', this)" title="Remove this entry from state">
+              Clear
+            </button>
           </div>
         </div>
+        ${!isStale ? `
         <div style="overflow-x:auto">
           <table>
             <thead><tr>
@@ -751,8 +866,19 @@ async function loadPending() {
             </tbody>
           </table>
         </div>
+        ` : `<div style="font-size:12px;color:var(--text3);font-style:italic">This entry is ${esc(status)} — click Clear to remove it.</div>`}
       </div>`;
   }).join('');
+}
+
+async function clearStaleSelection(account, btn) {
+  if (!confirm(`Remove selection state for ${account}?`)) return;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  const res = await api(`/api/pending/selections/${account}`, 'DELETE');
+  if (res?.ok) { toast(`Cleared state for ${account}`, 'success'); loadPending(); }
+  else { toast('Clear failed', 'error'); btn.innerHTML = orig; btn.disabled = false; }
 }
 
 async function selAction(account, action, photoNum, btn) {
@@ -843,6 +969,171 @@ function parseCronCommand(line) {
   const parts = line.trim().split(/\s+/);
   if (parts.length < 5) return line;
   return parts.slice(5).join(' ');
+}
+
+// ─── Activity / Audit Log ─────────────────────────────────────────────────────
+let activityRefreshTimer = null;
+let activityEvents = [];
+
+async function initActivity() {
+  // Populate account selector if empty
+  const sel = document.getElementById('activityAccount');
+  if (sel.options.length <= 1) {
+    const accounts = await api('/api/accounts');
+    if (accounts) {
+      accounts.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.name;
+        opt.textContent = a.display_name || a.name;
+        sel.appendChild(opt);
+      });
+      if (accounts.length > 0) sel.value = accounts[0].name;
+    }
+  }
+  await loadActivity();
+  // Auto-refresh every 30s
+  if (activityRefreshTimer) clearInterval(activityRefreshTimer);
+  activityRefreshTimer = setInterval(loadActivity, 30000);
+}
+
+async function loadActivity() {
+  const account = document.getElementById('activityAccount').value;
+  if (!account) {
+    document.getElementById('activityContent').innerHTML =
+      '<div style="color:var(--text3);font-size:13px">Select an account above.</div>';
+    return;
+  }
+  const data = await api(`/api/audit/${account}?limit=200`);
+  if (!data) {
+    document.getElementById('activityContent').innerHTML =
+      '<div class="card" style="padding:24px;color:var(--red);font-size:13px">Failed to load audit log.</div>';
+    return;
+  }
+  activityEvents = (data.events || []).reverse(); // newest first
+  renderActivityFeed();
+}
+
+function renderActivityFeed() {
+  const filterVal = document.getElementById('activityFilter').value;
+  const container = document.getElementById('activityContent');
+
+  let events = activityEvents;
+  if (filterVal === 'approval') events = events.filter(e => e.event?.includes('approval') || e.event === 'photos_selected');
+  else if (filterVal === 'post') events = events.filter(e => e.event?.includes('post') || e.event === 'photos_selected' || e.event === 'video_decision');
+  else if (filterVal === 'error') events = events.filter(e => e.data?.pipeline_ok === false);
+
+  if (!events.length) {
+    container.innerHTML = '<div class="card" style="padding:24px;color:var(--text3);font-size:13px">No events found.</div>';
+    return;
+  }
+
+  const iconMap = {
+    approval_sent: '📤',
+    approval_opened: '👁',
+    photos_selected: '✅',
+    post_scheduled: '📅',
+    post_completed: '🚀',
+    post_skipped: '⏭',
+    video_decision: '🎬',
+  };
+
+  container.innerHTML = `
+    <div class="card" style="overflow:hidden">
+      ${events.map(e => {
+        const icon = iconMap[e.event] || '•';
+        const isError = e.data?.pipeline_ok === false;
+        const dataStr = Object.entries(e.data || {})
+          .filter(([k]) => k !== 'pipeline_ok' || isError)
+          .map(([k, v]) => `<span style="color:var(--text3)">${esc(k)}:</span> ${esc(JSON.stringify(v))}`)
+          .join(' &nbsp;·&nbsp; ');
+        return `
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--border);${isError ? 'background:rgba(239,68,68,0.04)' : ''}">
+            <span style="font-size:16px;min-width:22px;text-align:center">${icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                <span style="font-size:13px;font-weight:600;color:${isError ? 'var(--red)' : 'var(--text)'}">${esc(e.event || '?')}</span>
+                <span style="font-size:11px;color:var(--text3)">${e.ts ? relTime(e.ts) : '?'}</span>
+                <span style="font-size:11px;color:var(--text3)">${e.ts ? shortDate(e.ts) : ''}</span>
+              </div>
+              ${dataStr ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dataStr}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ─── Conversation ─────────────────────────────────────────────────────────────
+let conversationRefreshTimer = null;
+
+async function initConversation() {
+  const sel = document.getElementById('conversationAccount');
+  if (sel.options.length <= 1) {
+    const accounts = await api('/api/accounts');
+    if (accounts) {
+      accounts.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.name;
+        opt.textContent = a.display_name || a.name;
+        sel.appendChild(opt);
+      });
+      if (accounts.length > 0) sel.value = accounts[0].name;
+    }
+  }
+  await loadConversation();
+  if (conversationRefreshTimer) clearInterval(conversationRefreshTimer);
+  conversationRefreshTimer = setInterval(loadConversation, 60000);
+}
+
+async function loadConversation() {
+  const account = document.getElementById('conversationAccount').value;
+  const container = document.getElementById('conversationContent');
+  if (!account) {
+    container.innerHTML = '<div style="color:var(--text3);font-size:13px">Select an account above.</div>';
+    return;
+  }
+  // Show spinner
+  container.innerHTML = `
+    <div style="display:flex;justify-content:center;align-items:center;padding:60px 20px">
+      <span class="spinner" style="width:24px;height:24px;border-width:3px;color:var(--text3)"></span>
+    </div>`;
+  const data = await api(`/api/conversation/${account}`);
+  if (!data) {
+    container.innerHTML = '<div class="card" style="padding:24px;color:var(--red);font-size:13px">Failed to load conversation.</div>';
+    return;
+  }
+  const messages = data.messages || [];
+  if (!messages.length) {
+    container.innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden;max-width:520px;margin:0 auto">
+        <div class="chat-scroll"><div class="chat-empty">No conversation history yet for this account.</div></div>
+      </div>`;
+    return;
+  }
+  const bubblesHtml = messages.map(m => {
+    const tsStr = m.ts ? shortDate(m.ts) : '';
+    const txt = esc(m.text || '');
+    const sourceTag = m.source === 'bluebubbles'
+      ? '<span style="font-size:9px;color:var(--text3);margin-left:4px">iMsg</span>'
+      : '';
+    return `
+      <div class="bubble-row ${esc(m.kind)}">
+        <div class="bubble ${esc(m.kind)}">${txt}${m.kind !== 'system' ? sourceTag : ''}</div>
+        <div class="bubble-ts">${tsStr}</div>
+      </div>`;
+  }).join('');
+  const handleBadge = data.handle
+    ? `<div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px">${esc(data.handle)}</div>`
+    : '';
+  container.innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden;max-width:520px;margin:0 auto">
+      <div style="padding:12px 16px 0">${handleBadge}</div>
+      <div class="chat-scroll" id="chatScrollBox">
+        <div class="chat-wrap">${bubblesHtml}</div>
+      </div>
+    </div>`;
+  // Scroll to bottom
+  const box = document.getElementById('chatScrollBox');
+  if (box) box.scrollTop = box.scrollHeight;
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
