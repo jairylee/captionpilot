@@ -84,7 +84,7 @@ app.add_middleware(
         "http://127.0.0.1:8766",
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -457,6 +457,53 @@ async def update_selection(account: str, request: Request, auth=Depends(verify_t
     state[account] = acct_state
     write_json(path, state)
     return {"ok": True, "state": acct_state}
+
+
+@app.post("/api/schedule/optimize/{account}")
+async def optimize_schedule(account: str, auth=Depends(verify_token)):
+    """Trigger a schedule optimization run for a specific account."""
+    cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
+    if not cfg_path.exists():
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    script_path = SCRIPTS_DIR / "update_post_schedule.py"
+    if not script_path.exists():
+        raise HTTPException(status_code=500, detail="update_post_schedule.py not found")
+
+    try:
+        result = subprocess.run(
+            ["python3", str(script_path), "--account", account],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(WORKSPACE),
+        )
+        combined = (result.stdout + "\n" + result.stderr).strip()
+        lines = combined.splitlines()[-50:]
+
+        # Parse result summary from last log lines
+        summary = next(
+            (l for l in reversed(lines) if account in l and any(k in l for k in ("Updated", "No change", "error", "→"))),
+            None,
+        )
+
+        # Re-read config to get the new optimal_post_time
+        cfg = read_json(cfg_path)
+        new_time = cfg.get("optimal_post_time", "unknown")
+
+        return {
+            "ok": result.returncode == 0,
+            "return_code": result.returncode,
+            "output": lines,
+            "account": account,
+            "new_optimal_post_time": new_time,
+            "summary": summary,
+            "ran_at": utcnow(),
+        }
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": "Optimizer timed out after 120 seconds"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 @app.get("/api/feed/sync/{account}")
@@ -945,6 +992,55 @@ def serve_video_poster(token: str):
     return FileResponse(str(poster_path), media_type="image/jpeg")
 
 
+@app.post("/api/video-approve/{token}/regenerate")
+async def regenerate_video_caption(token: str):
+    """Public endpoint — regenerate caption for a video without side effects."""
+    tokens = _load_video_tokens()
+    if token not in tokens:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+    meta = tokens[token]
+    if meta.get("used"):
+        raise HTTPException(status_code=410, detail="Token already used")
+
+    account = meta["account"]
+    video_path_str = meta.get("video_path", "")
+
+    try:
+        sys.path.insert(0, str(WORKSPACE / "scripts"))
+        cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
+        cfg = read_json(cfg_path) or {}
+        cfg.setdefault("account", account)
+        from caption_engine import generate_caption  # type: ignore
+        caption = generate_caption(account, f"Video from {account}", "reel")
+    except Exception as e:
+        # Fall back to instagram_post generate_caption if caption_engine not available
+        try:
+            from instagram_post import generate_caption as gen_cap  # type: ignore
+            media_items = [{"staged_path": video_path_str, "filename": Path(video_path_str).name, "comment": None}]
+            caption = gen_cap(media_items, cfg)
+        except Exception as e2:
+            raise HTTPException(status_code=500, detail=f"Caption generation failed: {e2}")
+
+    return {"caption": caption}
+
+
+@app.post("/api/pending/captions/{account}")
+async def save_pending_caption(account: str, request: Request, auth=Depends(verify_token)):
+    """Admin endpoint — save an edited caption for a scheduled pending selection."""
+    sel_path = get_selection_state_path()
+    sel_state = read_json(sel_path)
+    if account not in sel_state:
+        raise HTTPException(status_code=404, detail=f"No selection state for '{account}'")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    caption = body.get("caption", "")
+    sel_state[account]["approved_caption"] = caption
+    write_json(sel_path, sel_state)
+    return {"ok": True, "account": account}
+
+
 @app.post("/api/video-approve/{token}/confirm")
 async def confirm_video_approval(token: str, request: Request):
     """Public endpoint — processes the video approval decision."""
@@ -965,6 +1061,11 @@ async def confirm_video_approval(token: str, request: Request):
         raise HTTPException(status_code=400, detail="action must be: reel | feed | skip")
 
     account = meta["account"]
+
+    # Persist any user-edited caption back into the token metadata
+    user_caption = body.get("caption", "").strip()
+    if user_caption:
+        meta["caption"] = user_caption
 
     # Mark token used
     meta["used"] = True
@@ -988,6 +1089,8 @@ async def confirm_video_approval(token: str, request: Request):
         qdata = read_json(video_queue_file)
         qdata["decision"] = action
         qdata["decided_at"] = utcnow()
+        if user_caption:
+            qdata["caption"] = user_caption
         write_json(video_queue_file, qdata)
 
     # Trigger video_decision_watcher to pick up the decision
@@ -1166,6 +1269,41 @@ def get_conversation(account: str, auth=Depends(verify_token)):
     messages.sort(key=lambda m: m.get("ts", ""))
 
     return {"messages": messages, "account": account, "handle": handle}
+
+
+# ─── QA endpoints ────────────────────────────────────────────────────────────
+
+@app.get("/api/qa/results")
+def get_qa_results(auth=Depends(verify_token)):
+    """Return the latest QA results."""
+    results_path = WORKSPACE / ".qa-results.json"
+    if not results_path.exists():
+        return {"status": "no_results", "message": "No QA run yet"}
+    return json.loads(results_path.read_text())
+
+
+@app.post("/api/qa/run")
+async def trigger_qa_run(auth=Depends(verify_token)):
+    """Trigger a QA run in the background."""
+    log_path = LOGS_DIR / "qa.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.Popen(
+        ["/bin/bash", str(WORKSPACE / "scripts" / "run_qa.sh")],
+        stdout=open(str(log_path), "a"),
+        stderr=subprocess.STDOUT,
+    )
+    return {"status": "started", "message": "QA run started in background"}
+
+
+@app.get("/api/qa/log")
+def get_qa_log(auth=Depends(verify_token), lines: int = 50):
+    """Return last N lines of the QA log."""
+    log_path = LOGS_DIR / "qa.log"
+    if not log_path.exists():
+        return {"lines": []}
+    with open(log_path) as f:
+        all_lines = f.readlines()
+    return {"lines": [l.rstrip() for l in all_lines[-lines:]]}
 
 
 # ─── Audit log endpoint ───────────────────────────────────────────────────────

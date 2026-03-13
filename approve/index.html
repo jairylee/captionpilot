@@ -23,6 +23,7 @@
       --accent-mid:   #c4d9cb;
       --dim:          rgba(0,0,0,0.40);
       --radius-btn:   100px;
+      --danger:       #c0392b;
     }
 
     body {
@@ -238,6 +239,10 @@
       transition: opacity 0.15s, transform 0.1s;
       -webkit-tap-highlight-color: transparent;
       white-space: nowrap;
+      min-height: 44px;        /* Apple HIG minimum tap target */
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .btn:active   { transform: scale(0.97); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -253,7 +258,159 @@
       color: var(--accent);
       border: 1.5px solid var(--accent);
       padding: 10px 16px;
-      font-size: 13px;
+      font-size: 14px;
+    }
+    /* Ghost button — used for skip, regenerate */
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1.5px solid var(--border);
+      padding: 10px 16px;
+      font-size: 14px;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--light); }
+
+    /* ─── Caption step ─────────────────────────── */
+    .caption-panel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.09);
+      padding: 20px 16px max(24px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+      max-height: 85dvh;
+      overflow-y: auto;
+    }
+
+    .caption-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .caption-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    .char-count {
+      font-size: 12px;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+    .char-count.warn  { color: #d97706; }
+    .char-count.over  { color: var(--danger); font-weight: 600; }
+
+    .caption-textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;       /* Prevents iOS auto-zoom */
+      color: var(--text);
+      background: #fff;
+      resize: none;
+      line-height: 1.5;
+      overflow: hidden;      /* Auto-grow via JS */
+      min-height: 100px;
+      transition: border-color 0.15s;
+    }
+    .caption-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .caption-actions-row {
+      display: flex;
+      gap: 10px;
+    }
+    .caption-actions-row .btn {
+      flex: 1;
+    }
+
+    .caption-ctas-row {
+      display: flex;
+      gap: 10px;
+    }
+    .caption-ctas-row .btn-secondary { flex: 1; }
+    .caption-ctas-row .btn-primary   { flex: 2; }
+
+    .btn-back {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 4px 0;
+      text-align: left;
+      min-height: 44px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .btn-back:hover { color: var(--text); }
+
+    /* ─── Confirm modal ─────────────────────────── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-sheet {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 28px 20px max(28px, env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+    .modal-sheet h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .modal-sheet p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .modal-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-modal-danger {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-btn);
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px;
+      min-height: 44px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .btn-modal-cancel {
+      background: transparent;
+      color: var(--muted);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-btn);
+      font-size: 15px;
+      font-weight: 500;
+      padding: 12px;
+      min-height: 44px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
     }
 
     /* ─── Hidden ─────────────────────────────── */
@@ -274,17 +431,17 @@
     <div class="state-sub">Loading your photos…</div>
   </div>
 
-  <!-- Error: 404 -->
+  <!-- Error: 404 / invalid token -->
   <div class="state" id="state-notfound" hidden>
     <div class="state-icon">🔗</div>
     <div class="state-title">Link not found</div>
-    <div class="state-sub">This approval link is invalid or expired.</div>
+    <div class="state-sub">This link is no longer valid. Ask for a new one.</div>
   </div>
 
-  <!-- Error: 410 -->
+  <!-- Error: 410 already used -->
   <div class="state" id="state-used" hidden>
     <div class="state-icon">✅</div>
-    <div class="state-title">Already used</div>
+    <div class="state-title">Already done</div>
     <div class="state-sub">This link has already been used. Check Instagram for the post!</div>
   </div>
 
@@ -299,14 +456,14 @@
   <div class="state" id="state-scheduled" hidden>
     <div class="state-icon">✅</div>
     <div class="state-title">Scheduled!</div>
-    <div class="state-sub">Your post will go live at 6 PM.</div>
+    <div class="state-sub" id="state-scheduled-msg">Your post will go live at 6 PM tonight.</div>
   </div>
 
   <!-- Success: post now -->
   <div class="state" id="state-posted" hidden>
     <div class="state-icon">🚀</div>
     <div class="state-title">Publishing now!</div>
-    <div class="state-sub">Check Instagram in a few minutes.</div>
+    <div class="state-sub" id="state-posted-msg">Check Instagram in a few minutes.</div>
   </div>
 
   <!-- Photo grid -->
@@ -318,52 +475,72 @@
     </div>
   </div>
 
-  <!-- Caption review panel (hidden until Continue is tapped) -->
-  <div class="bottom-bar" id="caption-bar" hidden style="flex-direction:column;gap:12px;padding:20px 16px 28px;background:var(--bg)">
-    <div style="font-size:0.7rem;font-weight:600;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;">Caption Preview</div>
-    <textarea id="caption-text" rows="5" style="width:100%;border:1.5px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:0.9rem;color:var(--text);background:#fff;resize:vertical;line-height:1.5"></textarea>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-ghost" id="btn-regenerate" onclick="regenerateCaption()" style="flex:1;font-size:0.85rem;border:1.5px solid var(--border);color:var(--muted)">↺ Regenerate</button>
+  <!-- ── Caption review panel (shown after Continue) ── -->
+  <div class="caption-panel" id="caption-bar" hidden>
+    <div class="caption-label-row">
+      <div class="caption-label">Caption Preview</div>
+      <div class="char-count" id="char-count">0 / 2200</div>
     </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-secondary" id="btn-post-now"  onclick="confirmAction('post')"     style="flex:1">Post Now</button>
-      <button class="btn btn-primary"   id="btn-schedule"  onclick="confirmAction('schedule')" style="flex:2">Schedule for 6 PM</button>
+    <textarea
+      class="caption-textarea"
+      id="caption-text"
+      rows="5"
+      placeholder="Your caption will appear here…"
+      oninput="onCaptionInput()"
+    ></textarea>
+    <div class="caption-actions-row">
+      <button class="btn btn-ghost" id="btn-regenerate" onclick="regenerateCaption()">↺ Regenerate</button>
     </div>
-    <button onclick="showPhotoStep()" style="background:none;border:none;color:var(--muted);font-size:0.8rem;cursor:pointer;padding:0">← Back to photos</button>
+    <div class="caption-ctas-row">
+      <button class="btn btn-secondary" id="btn-post-now"  onclick="confirmPostNow()">Post Now</button>
+      <button class="btn btn-primary"   id="btn-schedule"  onclick="confirmAction('schedule')">Schedule for 6 PM</button>
+    </div>
+    <button class="btn-back" onclick="showPhotoStep()">← Back to photos</button>
   </div>
 
-  <!-- Sticky bottom bar -->
+  <!-- ── Sticky bottom bar (photo selection step) ── -->
   <div class="bottom-bar" id="bottom-bar" hidden>
     <div class="bottom-count" id="bottom-count"><strong>0</strong> selected</div>
-    <button class="btn btn-ghost"     id="btn-skip"      onclick="skipUnselected()" style="font-size:0.8rem;padding:8px 14px;color:var(--muted);border:1.5px solid var(--border)">Skip rest</button>
-    <button class="btn btn-primary"   id="btn-continue"  onclick="showCaptionStep()" disabled>Continue →</button>
+    <button class="btn btn-ghost" id="btn-skip" onclick="skipUnselected()">Skip rest</button>
+    <button class="btn btn-primary" id="btn-continue" onclick="showCaptionStep()" disabled>Continue →</button>
+  </div>
+
+  <!-- ── Post Now confirmation modal ── -->
+  <div class="modal-backdrop" id="post-now-modal" hidden>
+    <div class="modal-sheet">
+      <h3>Post to Instagram now?</h3>
+      <p>This will publish immediately. You won't be able to undo it.</p>
+      <div class="modal-btns">
+        <button class="btn-modal-danger" onclick="confirmAction('post')">Yes, post now</button>
+        <button class="btn-modal-cancel" onclick="closePostModal()">Cancel</button>
+      </div>
+    </div>
   </div>
 
 <script>
   const API   = 'https://api.captionpilot.app';
-  const UA    = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
   const TOKEN = new URLSearchParams(location.search).get('t');
+  const CAPTION_LIMIT = 2200;
 
   let DATA      = null;
-  let selected  = [];      // array of photo indices (into scores[])
-  let heroIndex = null;    // which photo index is the hero (null = none)
+  let selected  = [];
+  let heroIndex = null;
 
-  // ─── Fetch helpers ───────────────────────────────────────────────────────
+  // ─── API helper ──────────────────────────────────────────────────────────
   function apiFetch(url, opts = {}) {
-    // Note: User-Agent is a forbidden header in browser fetch — don't set it
     opts.headers = opts.headers || {};
     return fetch(url, opts);
   }
 
-  // ─── Show/hide ───────────────────────────────────────────────────────────
+  // ─── Show/hide states ─────────────────────────────────────────────────────
   const STATES = ['state-loading','state-notfound','state-used','state-error','state-scheduled','state-posted','content'];
 
   function showOnly(id) {
     STATES.forEach(s => document.getElementById(s).hidden = (s !== id));
     const showChrome = (id === 'content');
-    document.getElementById('header').hidden     = !showChrome;
-    document.getElementById('bottom-bar').hidden = !showChrome;
-    document.getElementById('caption-bar').hidden = true; // always hide caption bar on state change
+    document.getElementById('header').hidden       = !showChrome;
+    document.getElementById('bottom-bar').hidden   = !showChrome;
+    document.getElementById('caption-bar').hidden  = true;
   }
 
   function showError(msg) {
@@ -371,86 +548,76 @@
     showOnly('state-error');
   }
 
-  // ─── Load ────────────────────────────────────────────────────────────────
+  // ─── Load ─────────────────────────────────────────────────────────────────
   async function load() {
     if (!TOKEN) { showOnly('state-notfound'); return; }
     try {
       const res = await apiFetch(`${API}/api/approve/${TOKEN}`);
       if (res.status === 410) { showOnly('state-used'); return; }
       if (res.status === 404) { showOnly('state-notfound'); return; }
-      if (!res.ok) { showError(`Server error (${res.status})`); return; }
+      if (!res.ok) { showError("Something went wrong. Please try again."); return; }
       DATA = await res.json();
-      // Initialise selection from server state
       selected  = Array.isArray(DATA.selected) ? [...DATA.selected] : [];
       heroIndex = selected.length > 0 ? selected[0] : null;
       render();
     } catch(e) {
-      showError('Could not connect to the server. Check your connection.');
+      showError("Can't reach the server. Check your connection and try again.");
     }
   }
 
-  // ─── Render ──────────────────────────────────────────────────────────────
+  // ─── Render grid ─────────────────────────────────────────────────────────
   function isVideo(entry) {
     return /\.(mp4|mov)$/i.test(entry.name || '');
   }
 
   function render() {
-    const cfg = DATA.display_name || DATA.account;
+    const cfg    = DATA.display_name || DATA.account;
     const handle = DATA.instagram_handle || '';
     document.getElementById('header-identity').innerHTML =
       `<strong>${cfg}</strong>${handle ? ' · ' + handle : ''}`;
+
+    // Personalise success messages with account handle
+    const handleStr = handle ? ` — ${handle}` : '';
+    document.getElementById('state-scheduled-msg').textContent =
+      `✅ Scheduled for 6 PM tonight${handleStr}`;
+    document.getElementById('state-posted-msg').textContent =
+      `Check Instagram in a few minutes${handleStr}`;
 
     const grid = document.getElementById('photo-grid');
     grid.innerHTML = '';
 
     (DATA.scores || []).forEach((entry, i) => {
-      const card = document.createElement('div');
+      const card  = document.createElement('div');
       card.className = 'card';
       card.dataset.index = i;
 
       const video = isVideo(entry);
 
-      // Media
-      if (video) {
-        const img = document.createElement('img');
-        img.src   = entry.photo_url;
-        img.alt   = `Video ${i+1}`;
-        img.loading = 'lazy';
-        card.appendChild(img);
+      const img = document.createElement('img');
+      img.src = entry.photo_url;
+      img.alt = video ? `Video ${i+1}` : `Photo ${i+1}`;
+      img.loading = 'lazy';
+      card.appendChild(img);
 
-        // Play overlay
+      if (video) {
         const playWrap = document.createElement('div');
         playWrap.className = 'badge-play';
         playWrap.innerHTML = '<div class="play-icon">▶</div>';
         card.appendChild(playWrap);
-      } else {
-        const img = document.createElement('img');
-        img.src   = entry.photo_url;
-        img.alt   = `Photo ${i+1}`;
-        img.loading = 'lazy';
-        card.appendChild(img);
       }
 
-      // Dim overlay
       const dim = document.createElement('div');
       dim.className = 'card-dim';
       card.appendChild(dim);
 
-      // Hero badge (hidden until .hero class applied)
       const heroBadge = document.createElement('div');
       heroBadge.className = 'badge-hero';
-      heroBadge.dataset.type = video ? 'reel' : 'hero';
       heroBadge.innerHTML = `⭐ <span>${video ? 'REEL' : 'HERO'}</span>`;
       card.appendChild(heroBadge);
 
-      // Score / VIDEO badge
       const scoreBadge = document.createElement('div');
       scoreBadge.className = 'badge-score';
-      if (video) {
-        scoreBadge.textContent = 'VIDEO';
-      } else {
-        scoreBadge.textContent = `⭐ ${Math.round(entry.score || 0)}`;
-      }
+      scoreBadge.textContent = video ? 'VIDEO' : `⭐ ${Math.round(entry.score || 0)}`;
       card.appendChild(scoreBadge);
 
       card.addEventListener('click', () => tapCard(i));
@@ -462,21 +629,18 @@
     showOnly('content');
   }
 
-  // ─── Tap logic ───────────────────────────────────────────────────────────
+  // ─── Tap logic ────────────────────────────────────────────────────────────
   function tapCard(i) {
-    const sel = selected.includes(i);
+    const sel  = selected.includes(i);
     const hero = (i === heroIndex);
 
     if (!sel) {
-      // Unselected → select, auto-hero if no hero
       selected.push(i);
       if (heroIndex === null) heroIndex = i;
     } else if (hero) {
-      // Hero → deselect, promote next
       selected = selected.filter(x => x !== i);
       heroIndex = selected.length > 0 ? selected[0] : null;
     } else {
-      // Selected non-hero → set as hero
       heroIndex = i;
     }
 
@@ -484,10 +648,9 @@
     updateBar();
   }
 
-  // ─── Sync card DOM states ────────────────────────────────────────────────
   function syncCardStates() {
     document.querySelectorAll('.card').forEach(card => {
-      const i = parseInt(card.dataset.index);
+      const i    = parseInt(card.dataset.index);
       const sel  = selected.includes(i);
       const hero = (i === heroIndex);
       card.classList.toggle('selected', sel && !hero);
@@ -495,7 +658,6 @@
     });
   }
 
-  // ─── Update bottom bar ───────────────────────────────────────────────────
   function updateBar() {
     const n = selected.length;
     const hasVideo = selected.some(i => isVideo(DATA.scores[i]));
@@ -509,38 +671,34 @@
       countEl.innerHTML = `<strong>${n}</strong> photo${n !== 1 ? 's' : ''} selected`;
     }
 
-    const dis = (n === 0);
-    document.getElementById('btn-continue').disabled  = dis;
+    document.getElementById('btn-continue').disabled = (n === 0);
 
-    // Video note
     const note = document.getElementById('video-note');
     note.classList.toggle('visible', hasVideo && n > 0);
   }
 
-  // ─── Skip unselected ─────────────────────────────────────────────────────
+  // ─── Skip unselected ──────────────────────────────────────────────────────
   async function skipUnselected() {
-    const unselected = DATA.scores
-      .map((_, i) => i)
-      .filter(i => !selected.includes(i));
+    const unselected = DATA.scores.map((_, i) => i).filter(i => !selected.includes(i));
     if (unselected.length === 0) return;
-    if (!confirm(`Skip ${unselected.length} unselected photo(s)? They won't appear in future approval pages.`)) return;
+    if (!confirm(`Skip ${unselected.length} unselected photo${unselected.length !== 1 ? 's' : ''}? They won't be included in this post.`)) return;
     try {
       await fetch(`${API}/api/approve/${TOKEN}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'skip_unselected', skip_indices: unselected })
       });
-      // Update UI — dim skipped cards
       unselected.forEach(i => {
         const card = document.querySelector(`[data-index="${i}"]`);
         if (card) { card.style.opacity = '0.3'; card.style.pointerEvents = 'none'; }
       });
-      document.getElementById('btn-skip').textContent = '✓ Skipped';
-      document.getElementById('btn-skip').disabled = true;
+      const btn = document.getElementById('btn-skip');
+      btn.textContent = '✓ Skipped';
+      btn.disabled = true;
     } catch(e) { /* silent — state will reconcile */ }
   }
 
-// ─── Caption step ─────────────────────────────────────────────────────────
+  // ─── Caption step ─────────────────────────────────────────────────────────
   function showPhotoStep() {
     document.getElementById('bottom-bar').hidden  = false;
     document.getElementById('caption-bar').hidden = true;
@@ -550,11 +708,14 @@
     if (selected.length === 0) return;
     document.getElementById('bottom-bar').hidden  = true;
     document.getElementById('caption-bar').hidden = false;
+
     const ta = document.getElementById('caption-text');
     ta.value = 'Writing your caption…';
+    ta.style.height = 'auto';
+    updateCharCount();
+    setActionBtnsDisabled(true);
     document.getElementById('btn-regenerate').disabled = true;
-    document.getElementById('btn-schedule').disabled   = true;
-    document.getElementById('btn-post-now').disabled   = true;
+
     await fetchCaption();
   }
 
@@ -567,33 +728,73 @@
         body:    JSON.stringify({ action: 'preview_caption', selected }),
       });
       const data = await res.json();
-      ta.value = data.caption || '(no caption returned)';
+      ta.value = data.caption || '(No caption returned — you can write your own)';
     } catch(e) {
-      ta.value = '(caption generation failed — you can type your own)';
+      ta.value = '(Caption generation failed — you can write your own)';
     }
+    autoGrow(ta);
+    updateCharCount();
+    setActionBtnsDisabled(false);
     document.getElementById('btn-regenerate').disabled = false;
-    document.getElementById('btn-schedule').disabled   = false;
-    document.getElementById('btn-post-now').disabled   = false;
   }
 
   async function regenerateCaption() {
     const ta = document.getElementById('caption-text');
-    ta.value = 'Rewriting…';
+    ta.value = 'Rewriting caption…';
+    autoGrow(ta);
+    updateCharCount();
+    setActionBtnsDisabled(true);
     document.getElementById('btn-regenerate').disabled = true;
-    document.getElementById('btn-schedule').disabled   = true;
-    document.getElementById('btn-post-now').disabled   = true;
     await fetchCaption();
   }
 
-// ─── Confirm action ──────────────────────────────────────────────────────
+  // ─── Caption auto-grow + char count ───────────────────────────────────────
+  function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight) + 'px';
+  }
+
+  function updateCharCount() {
+    const ta  = document.getElementById('caption-text');
+    const cnt = document.getElementById('char-count');
+    const len = ta.value.length;
+    cnt.textContent = `${len} / ${CAPTION_LIMIT}`;
+    cnt.classList.toggle('warn', len > 1800 && len <= CAPTION_LIMIT);
+    cnt.classList.toggle('over', len > CAPTION_LIMIT);
+  }
+
+  function onCaptionInput() {
+    autoGrow(document.getElementById('caption-text'));
+    updateCharCount();
+  }
+
+  // ─── Helper to lock/unlock action buttons ─────────────────────────────────
+  function setActionBtnsDisabled(dis) {
+    document.getElementById('btn-schedule').disabled = dis;
+    document.getElementById('btn-post-now').disabled = dis;
+  }
+
+  // ─── Post Now — show confirmation modal ───────────────────────────────────
+  function confirmPostNow() {
+    if (selected.length === 0) return;
+    document.getElementById('post-now-modal').hidden = false;
+  }
+
+  function closePostModal() {
+    document.getElementById('post-now-modal').hidden = true;
+  }
+
+  // ─── Confirm action (schedule | post) ─────────────────────────────────────
   async function confirmAction(action) {
     if (selected.length === 0) return;
 
+    // Close post modal if open
+    document.getElementById('post-now-modal').hidden = true;
+
     const btnSchedule = document.getElementById('btn-schedule');
     const btnPost     = document.getElementById('btn-post-now');
-
-    btnSchedule.disabled = true;
-    btnPost.disabled     = true;
+    setActionBtnsDisabled(true);
+    document.getElementById('btn-regenerate').disabled = true;
 
     if (action === 'schedule') {
       btnSchedule.textContent = 'Scheduling…';
@@ -602,6 +803,7 @@
     }
 
     const hero_index = heroIndex !== null ? heroIndex : (selected[0] ?? 0);
+    const captionVal = document.getElementById('caption-text')?.value?.trim() || undefined;
 
     try {
       const res = await apiFetch(`${API}/api/approve/${TOKEN}/confirm`, {
@@ -609,7 +811,7 @@
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           action, selected, hero_index,
-          caption: document.getElementById('caption-text')?.value || undefined
+          caption: captionVal,
         }),
       });
 
@@ -617,25 +819,27 @@
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        showError(err.detail || `Server error (${res.status})`);
+        showError(err.detail === "This approval link has already been used"
+          ? "This link has already been used. Check Instagram!"
+          : "Something went wrong. Please try again.");
         return;
       }
 
-      // Reset button states before hiding (clean for any future back-navigation)
-      btnSchedule.disabled = false; btnPost.disabled = false;
-      btnSchedule.textContent = 'Schedule for 6 PM'; btnPost.textContent = 'Post Now';
+      // Reset button text before navigating away
+      btnSchedule.textContent = 'Schedule for 6 PM';
+      btnPost.textContent     = 'Post Now';
       showOnly(action === 'schedule' ? 'state-scheduled' : 'state-posted');
 
     } catch(e) {
-      btnSchedule.disabled = false;
-      btnPost.disabled     = false;
+      setActionBtnsDisabled(false);
+      document.getElementById('btn-regenerate').disabled = false;
       btnSchedule.textContent = 'Schedule for 6 PM';
       btnPost.textContent     = 'Post Now';
-      showError('Could not connect. Check your connection and try again.');
+      showError("Can't reach the server. Check your connection and try again.");
     }
   }
 
-  // ─── Boot ────────────────────────────────────────────────────────────────
+  // ─── Boot ─────────────────────────────────────────────────────────────────
   load();
 </script>
 </body>

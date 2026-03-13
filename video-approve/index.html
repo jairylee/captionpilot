@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Caption Pilot — Video Approval</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,9 +14,12 @@
       --bg:      #faf8f5;
       --accent:  #5c7e6c;
       --accent-hover: #4a6a59;
+      --accent-light: #e8f0eb;
+      --accent-mid:   #c4d9cb;
       --border:  #e4ddd5;
       --text:    #1a1714;
       --muted:   #7a6f66;
+      --danger:  #c0392b;
       --radius:  100px;
       --card-radius: 16px;
     }
@@ -101,12 +104,18 @@
       letter-spacing: 0.3px;
     }
 
-    /* ── Caption preview ── */
+    /* ── Caption block ── */
     .caption-block {
       border: 1px solid var(--border);
       border-radius: var(--card-radius);
       padding: 14px 16px;
       background: #fff;
+    }
+    .caption-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
     }
     .caption-label {
       font-size: 11px;
@@ -114,18 +123,76 @@
       color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      margin-bottom: 6px;
     }
-    .caption-text {
+    .caption-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .char-count {
+      font-size: 11px;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+    .char-count.warn { color: #d97706; }
+    .char-count.over { color: var(--danger); font-weight: 600; }
+
+    /* Read-only caption display */
+    .caption-display {
       font-size: 14px;
       line-height: 1.55;
       color: var(--text);
-      display: -webkit-box;
-      -webkit-line-clamp: 4;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
       white-space: pre-wrap;
+      word-break: break-word;
     }
+
+    /* Editable caption textarea */
+    .caption-textarea {
+      width: 100%;
+      border: none;
+      outline: none;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 16px;   /* Prevents iOS auto-zoom */
+      line-height: 1.55;
+      color: var(--text);
+      background: transparent;
+      resize: none;
+      overflow: hidden;
+      min-height: 80px;
+      display: none;
+    }
+
+    .caption-editing .caption-display { display: none; }
+    .caption-editing .caption-textarea { display: block; }
+
+    .edit-caption-btn {
+      background: none;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      padding: 2px 0;
+      font-family: 'DM Sans', sans-serif;
+      min-height: 28px;
+      min-width: 44px;
+    }
+    .edit-caption-btn:hover { color: var(--accent-hover); }
+
+    .regen-btn {
+      background: var(--accent-light);
+      border: 1px solid var(--accent-mid);
+      color: var(--accent);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      min-height: 28px;
+      display: none;
+    }
+    .caption-editing .regen-btn { display: inline-flex; align-items: center; }
 
     /* ── Buttons ── */
     .actions {
@@ -148,6 +215,7 @@
       border: none;
       transition: opacity 0.15s, transform 0.1s;
       text-decoration: none;
+      min-height: 44px;   /* Apple HIG tap target */
     }
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -191,6 +259,67 @@
       color: var(--muted);
       text-align: center;
       line-height: 1.5;
+    }
+
+    /* ── Inline error banner ── */
+    .error-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--card-radius);
+      padding: 14px 16px;
+      font-size: 14px;
+      color: #b91c1c;
+      text-align: center;
+      display: none;
+    }
+    .error-banner.visible { display: block; }
+
+    /* ── Confirmation modal ── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-sheet {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 28px 20px max(28px, env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+    .modal-sheet h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .modal-sheet p  { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+    .modal-btns { display: flex; flex-direction: column; gap: 10px; }
+    .btn-modal-confirm {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 16px;
+      font-weight: 600;
+      padding: 14px;
+      min-height: 44px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      width: 100%;
+    }
+    .btn-modal-cancel {
+      background: transparent;
+      color: var(--muted);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 500;
+      padding: 12px;
+      min-height: 44px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      width: 100%;
     }
 
     /* ── States ── */
@@ -246,7 +375,7 @@
     <div class="message-card">
       <div class="emoji">🔗</div>
       <h2>Link not found</h2>
-      <p>Invalid or expired link. Ask for a new one.</p>
+      <p>This link is no longer valid. Ask for a new one.</p>
     </div>
   </div>
 </div>
@@ -294,39 +423,67 @@
       <div class="duration-badge" id="duration-badge" style="display:none;"></div>
     </div>
 
-    <!-- Caption preview -->
-    <div class="caption-block">
-      <div class="caption-label">Caption preview</div>
-      <div class="caption-text" id="caption-text">Loading…</div>
+    <!-- Caption (read-only by default, editable on toggle) -->
+    <div class="caption-block" id="caption-block">
+      <div class="caption-header">
+        <div class="caption-label">Caption</div>
+        <div class="caption-meta-row">
+          <button class="regen-btn" id="btn-regen-caption" onclick="regenerateCaption()">↺ Regenerate</button>
+          <span class="char-count" id="char-count"></span>
+          <button class="edit-caption-btn" id="btn-edit-caption" onclick="toggleCaptionEdit()">Edit</button>
+        </div>
+      </div>
+      <!-- Read-only view (collapsed to full text — no line clamp) -->
+      <div class="caption-display" id="caption-display"></div>
+      <!-- Editable textarea -->
+      <textarea class="caption-textarea" id="caption-textarea"
+                oninput="onCaptionInput()"
+                placeholder="Write your caption…"></textarea>
     </div>
+
+    <!-- Inline error banner (replaces alert()) -->
+    <div class="error-banner" id="error-banner"></div>
 
     <!-- Action buttons -->
     <div class="actions" id="actions">
-      <button class="btn btn-primary" id="btn-reel" onclick="decide('reel')">
-        Post as Reel
+      <button class="btn btn-primary" id="btn-reel" onclick="requestDecision('reel')">
+        Post as Reel ⭐
         <span class="btn-hint">Best reach · new audiences</span>
       </button>
-      <button class="btn btn-outline" id="btn-feed" onclick="decide('feed')">
+      <button class="btn btn-outline" id="btn-feed" onclick="requestDecision('feed')">
         Post as Feed Video
         <span class="btn-hint">Stays on your grid</span>
       </button>
-      <button class="btn btn-ghost" id="btn-skip" onclick="decide('skip')">
+      <button class="btn btn-ghost" id="btn-skip" onclick="requestDecision('skip')">
         Skip this video
       </button>
     </div>
 
     <p class="explainer">
-      Reels reach new audiences. Feed videos are for your existing followers.
+      Reels reach new audiences. Feed videos stay visible on your grid.
     </p>
 
   </div>
 </div>
 
-<script>
-  const API_BASE = 'https://api.captionpilot.app';
-  const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+<!-- Confirmation modal -->
+<div class="modal-backdrop" id="confirm-modal" style="display:none;">
+  <div class="modal-sheet">
+    <h3 id="modal-title">Post this video?</h3>
+    <p id="modal-body">This will publish immediately and can't be undone.</p>
+    <div class="modal-btns">
+      <button class="btn-modal-confirm" id="modal-confirm-btn" onclick="executeDecision()">Post now</button>
+      <button class="btn-modal-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
 
-  let TOKEN = null;
+<script>
+  const API_BASE   = 'https://api.captionpilot.app';
+  const CAPTION_LIMIT = 2200;
+
+  let TOKEN        = null;
+  let pendingAction = null;   // "reel" | "feed" | "skip" — waiting for modal confirm
 
   function showView(id) {
     document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
@@ -341,19 +498,185 @@
     return `${m}:${rem.toString().padStart(2, '0')}`;
   }
 
+  // ── Char count ────────────────────────────────────────────────────────────
+  function updateCharCount() {
+    const ta  = document.getElementById('caption-textarea');
+    const cnt = document.getElementById('char-count');
+    const len = ta.value.length;
+    cnt.textContent = `${len} / ${CAPTION_LIMIT}`;
+    cnt.classList.toggle('warn', len > 1800 && len <= CAPTION_LIMIT);
+    cnt.classList.toggle('over', len > CAPTION_LIMIT);
+  }
+
+  function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  function onCaptionInput() {
+    autoGrow(document.getElementById('caption-textarea'));
+    updateCharCount();
+  }
+
+  // ── Caption edit toggle ───────────────────────────────────────────────────
+  function toggleCaptionEdit() {
+    const block = document.getElementById('caption-block');
+    const btn   = document.getElementById('btn-edit-caption');
+    const ta    = document.getElementById('caption-textarea');
+    const display = document.getElementById('caption-display');
+    const isEditing = block.classList.toggle('caption-editing');
+
+    if (isEditing) {
+      // Sync display → textarea
+      ta.value = display.textContent;
+      autoGrow(ta);
+      updateCharCount();
+      ta.focus();
+      btn.textContent = 'Done';
+    } else {
+      // Sync textarea → display
+      display.textContent = ta.value;
+      btn.textContent = 'Edit';
+    }
+  }
+
+  // ── Regenerate caption ────────────────────────────────────────────────────
+  async function regenerateCaption() {
+    const regenBtn = document.getElementById('btn-regen-caption');
+    regenBtn.disabled = true;
+    regenBtn.textContent = '…';
+
+    showError('');   // clear any error
+    try {
+      const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const newCaption = data.caption || '';
+      document.getElementById('caption-display').textContent = newCaption;
+      document.getElementById('caption-textarea').value = newCaption;
+      autoGrow(document.getElementById('caption-textarea'));
+      updateCharCount();
+    } catch (e) {
+      showError("Couldn't regenerate caption. Try again.");
+    }
+    regenBtn.disabled = false;
+    regenBtn.textContent = '↺ Regenerate';
+  }
+
+  // ── Error banner ──────────────────────────────────────────────────────────
+  function showError(msg) {
+    const banner = document.getElementById('error-banner');
+    if (msg) {
+      banner.textContent = msg;
+      banner.classList.add('visible');
+    } else {
+      banner.classList.remove('visible');
+    }
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  function requestDecision(action) {
+    pendingAction = action;
+    if (action === 'skip') {
+      // Skip doesn't need a confirmation — but still confirm so they don't accidentally tap
+      document.getElementById('modal-title').textContent = 'Skip this video?';
+      document.getElementById('modal-body').textContent  = 'Nothing will be posted. This can\'t be undone.';
+      document.getElementById('modal-confirm-btn').textContent = 'Yes, skip it';
+      document.getElementById('modal-confirm-btn').style.background = 'var(--muted)';
+    } else if (action === 'reel') {
+      document.getElementById('modal-title').textContent = 'Post as a Reel?';
+      document.getElementById('modal-body').textContent  = 'This will publish immediately to Instagram and can\'t be undone.';
+      document.getElementById('modal-confirm-btn').textContent = 'Yes, post as Reel';
+      document.getElementById('modal-confirm-btn').style.background = 'var(--accent)';
+    } else {
+      document.getElementById('modal-title').textContent = 'Post as a Feed Video?';
+      document.getElementById('modal-body').textContent  = 'This will publish immediately to Instagram and can\'t be undone.';
+      document.getElementById('modal-confirm-btn').textContent = 'Yes, post as Feed Video';
+      document.getElementById('modal-confirm-btn').style.background = 'var(--accent)';
+    }
+    document.getElementById('confirm-modal').style.display = 'flex';
+  }
+
+  function closeModal() {
+    document.getElementById('confirm-modal').style.display = 'none';
+    pendingAction = null;
+  }
+
+  // ── Execute the confirmed decision ────────────────────────────────────────
+  async function executeDecision() {
+    const action = pendingAction;
+    if (!action) return;
+    closeModal();
+
+    // Get caption from whichever mode is active
+    const block  = document.getElementById('caption-block');
+    const isEditing = block.classList.contains('caption-editing');
+    const caption = isEditing
+      ? document.getElementById('caption-textarea').value.trim()
+      : document.getElementById('caption-display').textContent.trim();
+
+    // Disable all buttons
+    ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
+      document.getElementById(id).disabled = true;
+    });
+    showError('');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, caption }),
+      });
+
+      if (res.status === 410) { showView('view-410'); return; }
+
+      if (!res.ok) {
+        ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
+          document.getElementById(id).disabled = false;
+        });
+        showError('Something went wrong. Please try again.');
+        return;
+      }
+
+      // Build success message with account handle
+      const handle = document.getElementById('instagram-handle').textContent || '';
+      const acctSuffix = handle ? ` — ${handle}` : '';
+
+      if (action === 'reel') {
+        document.getElementById('success-emoji').textContent = '🎬';
+        document.getElementById('success-title').textContent = 'Published as a Reel!';
+        document.getElementById('success-msg').textContent   = `Usually live within a few minutes${acctSuffix}.`;
+      } else if (action === 'feed') {
+        document.getElementById('success-emoji').textContent = '📹';
+        document.getElementById('success-title').textContent = 'Published as a Feed Video!';
+        document.getElementById('success-msg').textContent   = `It'll appear on your grid shortly${acctSuffix}.`;
+      } else {
+        document.getElementById('success-emoji').textContent = '⏭️';
+        document.getElementById('success-title').textContent = 'Skipped';
+        document.getElementById('success-msg').textContent   = 'Nothing was posted.';
+      }
+      showView('view-success');
+
+    } catch (err) {
+      ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
+        document.getElementById(id).disabled = false;
+      });
+      showError("Can't reach the server. Check your connection and try again.");
+    }
+  }
+
+  // ── Load ──────────────────────────────────────────────────────────────────
   async function loadData() {
     const params = new URLSearchParams(window.location.search);
     TOKEN = params.get('t');
 
-    if (!TOKEN) {
-      showView('view-404');
-      return;
-    }
+    if (!TOKEN) { showView('view-404'); return; }
 
     try {
-      const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}`, {
-        headers: {  },
-      });
+      const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}`);
 
       if (res.status === 404) { showView('view-404'); return; }
       if (res.status === 410) { showView('view-410'); return; }
@@ -361,86 +684,31 @@
 
       const data = await res.json();
 
-      // Populate header
-      document.getElementById('display-name').textContent = data.display_name || '';
-      document.getElementById('instagram-handle').textContent = data.instagram_handle || '';
+      document.getElementById('display-name').textContent      = data.display_name || '';
+      document.getElementById('instagram-handle').textContent  = data.instagram_handle || '';
 
       // Poster
       const img = document.getElementById('poster-img');
       img.src = data.poster_url;
 
-      // Duration
+      // Duration badge
       const dur = formatDuration(data.duration);
       if (dur) {
         const badge = document.getElementById('duration-badge');
-        badge.textContent = dur;
+        badge.textContent  = dur;
         badge.style.display = 'block';
       }
 
-      // Caption
-      document.getElementById('caption-text').textContent =
-        data.caption || '(No caption)';
+      // Caption — show in display div and pre-load textarea
+      const caption = data.caption || '(No caption)';
+      document.getElementById('caption-display').textContent  = caption;
+      document.getElementById('caption-textarea').value       = caption;
+      updateCharCount();
 
       showView('view-main');
 
     } catch (err) {
-      console.error(err);
       showView('view-404');
-    }
-  }
-
-  async function decide(action) {
-    // Disable all buttons immediately
-    ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
-      document.getElementById(id).disabled = true;
-    });
-
-    try {
-      const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}/confirm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          
-        },
-        body: JSON.stringify({ action }),
-      });
-
-      if (res.status === 410) {
-        showView('view-410');
-        return;
-      }
-
-      if (!res.ok) {
-        // Re-enable on error
-        ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
-          document.getElementById(id).disabled = false;
-        });
-        alert('Something went wrong. Please try again.');
-        return;
-      }
-
-      // Show success
-      if (action === 'reel') {
-        document.getElementById('success-emoji').textContent = '🎬';
-        document.getElementById('success-title').textContent = 'Publishing as a Reel!';
-        document.getElementById('success-msg').textContent = 'Usually live within a few minutes.';
-      } else if (action === 'feed') {
-        document.getElementById('success-emoji').textContent = '📹';
-        document.getElementById('success-title').textContent = 'Publishing as a Feed video!';
-        document.getElementById('success-msg').textContent = "It'll appear on your grid shortly.";
-      } else {
-        document.getElementById('success-emoji').textContent = '⏭️';
-        document.getElementById('success-title').textContent = 'Skipped';
-        document.getElementById('success-msg').textContent = 'Nothing will be posted.';
-      }
-      showView('view-success');
-
-    } catch (err) {
-      console.error(err);
-      ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
-        document.getElementById(id).disabled = false;
-      });
-      alert('Network error. Please try again.');
     }
   }
 

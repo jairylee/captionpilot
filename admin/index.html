@@ -185,6 +185,10 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       Conversation
     </div>
+    <div onclick="showSection('qa')" class="nav-link" id="nav-qa">
+      <span style="font-size:14px">🧪</span>
+      QA
+    </div>
     <div style="flex:1"></div>
     <div style="padding:12px;border-top:1px solid var(--border);margin-top:8px">
       <div style="font-size:11px;color:var(--text3)">localhost:8766</div>
@@ -346,6 +350,51 @@
       </div>
     </div>
 
+    <!-- QA -->
+    <div id="section-qa" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">🧪 QA Pipeline</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">Continuous testing — pytest suite + UX smoke tests</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost" onclick="loadQA()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+            Refresh
+          </button>
+          <button class="btn btn-primary" onclick="runQA()" id="qa-run-btn">▶ Run Now</button>
+        </div>
+      </div>
+
+      <!-- Summary card -->
+      <div id="qa-summary-card" class="card" style="padding:20px;margin-bottom:20px">
+        <div style="color:var(--text3);font-size:13px">Loading QA results…</div>
+      </div>
+
+      <!-- Pytest section -->
+      <div class="card" style="padding:20px;margin-bottom:20px" id="qa-pytest-card" style="display:none">
+        <h3 style="font-size:15px;font-weight:600;margin:0 0 16px">Pytest Suite</h3>
+        <div id="qa-pytest-content"><div style="color:var(--text3);font-size:13px">—</div></div>
+      </div>
+
+      <!-- UX Smoke section -->
+      <div class="card" style="padding:20px;margin-bottom:20px" id="qa-smoke-card" style="display:none">
+        <h3 style="font-size:15px;font-weight:600;margin:0 0 16px">UX Smoke Tests</h3>
+        <div id="qa-smoke-content"><div style="color:var(--text3);font-size:13px">—</div></div>
+      </div>
+
+      <!-- Log tail -->
+      <div class="card" style="padding:20px" id="qa-log-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h3 style="font-size:15px;font-weight:600;margin:0">QA Log (last 30 lines)</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadQALog()">Refresh log</button>
+        </div>
+        <div id="qa-log-content" style="font-family:'SF Mono',Menlo,monospace;font-size:11px;color:var(--text2);max-height:300px;overflow-y:auto;background:var(--surface2);padding:12px;border-radius:6px;border:1px solid var(--border)">
+          <div style="color:var(--text3)">Loading…</div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -446,6 +495,7 @@ function showSection(name) {
   else if (name === 'cron') loadCron();
   else if (name === 'activity') initActivity();
   else if (name === 'conversation') initConversation();
+  else if (name === 'qa') loadQA();
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -593,6 +643,9 @@ async function openAccountDetail(account) {
         <button class="btn btn-ghost" onclick="syncFeed('${account}', this)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
           Sync Feed
+        </button>
+        <button class="btn btn-ghost" onclick="optimizeSchedule('${account}', this)" title="Pull Instagram Insights and update optimal post time">
+          ⏰ Optimize Schedule
         </button>
         <button class="btn btn-primary" onclick="runPipelineFromDetail('${account}', this)">
           ▶ Run Pipeline
@@ -840,6 +893,30 @@ async function runPipelineFromDetail(account, btn) {
   await runPipeline(account, btn);
 }
 
+async function optimizeSchedule(account, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Optimizing…';
+  btn.disabled = true;
+  const res = await api(`/api/schedule/optimize/${account}`, { method: 'POST' });
+  btn.innerHTML = orig; btn.disabled = false;
+  if (!res) { toast('Optimize request failed', 'error'); return; }
+  if (res.ok) {
+    const newTime = res.new_optimal_post_time || '?';
+    toast(`⏰ Schedule optimized — new optimal time: ${newTime}`, 'success');
+    // Show output in a simple modal-like panel
+    if (res.output && res.output.length) {
+      const panel = document.createElement('div');
+      panel.style.cssText = 'position:fixed;bottom:80px;right:20px;max-width:480px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;z-index:9999;font-size:12px;font-family:monospace;max-height:300px;overflow-y:auto';
+      panel.innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:8px"><strong>Schedule Optimizer Output</strong><span style="cursor:pointer;color:var(--text3)" onclick="this.closest('div').remove()">✕</span></div>` +
+        res.output.map(l => `<div style="color:${l.includes('✅') ? 'var(--green)' : l.includes('error') ? 'var(--red)' : 'var(--text2)'}">${esc(l)}</div>`).join('');
+      document.body.appendChild(panel);
+      setTimeout(() => panel.remove(), 15000);
+    }
+  } else {
+    toast(`Optimize failed: ${res.error || 'unknown'}`, 'error');
+  }
+}
+
 // ─── Pending Approvals ────────────────────────────────────────────────────────
 async function loadPending() {
   const container = document.getElementById('pendingContent');
@@ -944,8 +1021,11 @@ async function loadPending() {
                     <div style="display:flex;gap:8px;flex-shrink:0">${previewStrip}</div>
                     <div style="flex:1;min-width:200px">
                       <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Approved Caption</div>
-                      <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.5;max-height:180px;overflow-y:auto">${caption ? esc(caption) : '<span style="color:var(--text3);font-style:italic">No caption saved</span>'}</div>
-                      <div style="font-size:11px;color:var(--text3);margin-top:6px">📅 Will post at 6 PM · ${selected.length} photo${selected.length !== 1 ? 's' : ''}</div>
+                      <textarea id="caption-editor-${account}" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px;font-size:13px;color:var(--text);line-height:1.5;resize:vertical;min-height:120px;font-family:inherit">${caption ? esc(caption) : ''}</textarea>
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;flex-wrap:wrap;gap:6px">
+                        <div style="font-size:11px;color:var(--text3)">📅 Will post at 6 PM · ${selected.length} photo${selected.length !== 1 ? 's' : ''}</div>
+                        <button class="btn btn-ghost btn-sm" onclick="savePendingCaption('${account}', this)">💾 Save caption</button>
+                      </div>
                     </div>
                   </div>`;
               })()
@@ -996,6 +1076,20 @@ async function loadPending() {
   container.innerHTML = pendingHtml + historyHtml;
 }
 
+async function savePendingCaption(account, btn) {
+  const ta = document.getElementById(`caption-editor-${account}`);
+  if (!ta) return;
+  const caption = ta.value.trim();
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  const res = await api(`/api/pending/captions/${account}`, 'POST', { caption });
+  btn.innerHTML = orig;
+  btn.disabled = false;
+  if (res?.ok) toast('Caption saved', 'success');
+  else toast('Save failed — caption will be used at post time anyway', 'error');
+}
+
 async function clearStaleSelection(account, btn) {
   if (!confirm(`Remove selection state for ${account}?`)) return;
   const orig = btn.innerHTML;
@@ -1016,6 +1110,7 @@ async function selAction(account, action, photoNum, btn) {
 }
 
 async function approveSelection(account, btn) {
+  if (!confirm(`Approve and post now for ${account}? This will publish to Instagram immediately.`)) return;
   const orig = btn.innerHTML;
   btn.innerHTML = '<span class="spinner"></span> Approving…';
   btn.disabled = true;
@@ -1333,6 +1428,186 @@ function toast(msg, type = 'success') {
   el.innerHTML = `${type === 'success' ? '✓' : '✕'} ${esc(msg)}`;
   document.getElementById('toast').appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+
+// ─── QA Pipeline ──────────────────────────────────────────────────────────────
+let qaRefreshTimer = null;
+
+async function loadQA() {
+  await Promise.all([loadQAResults(), loadQALog()]);
+}
+
+async function loadQAResults() {
+  const summaryCard = document.getElementById('qa-summary-card');
+  const pytestCard = document.getElementById('qa-pytest-card');
+  const smokeCard = document.getElementById('qa-smoke-card');
+
+  const data = await api('/api/qa/results');
+  if (!data) {
+    summaryCard.innerHTML = '<div style="color:var(--red);font-size:13px">Failed to load QA results</div>';
+    return;
+  }
+
+  if (data.status === 'no_results') {
+    summaryCard.innerHTML = '<div style="color:var(--text3);font-size:13px">No QA run yet. Click ▶ Run Now to start.</div>';
+    pytestCard.style.display = 'none';
+    smokeCard.style.display = 'none';
+    return;
+  }
+
+  // Summary card
+  const overallBadge = data.overall === 'pass'
+    ? '<span class="badge badge-green">✓ PASS</span>'
+    : '<span class="badge badge-red">✕ FAIL</span>';
+
+  const ts = data.timestamp ? new Date(data.timestamp).toLocaleString() : '—';
+  summaryCard.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      ${overallBadge}
+      <div style="font-size:13px;color:var(--text2)">
+        <span style="color:var(--text3)">Last run:</span> ${esc(ts)}
+      </div>
+      <div style="font-size:13px;color:var(--text2)">
+        <span style="color:var(--text3)">Commit:</span>
+        <code style="font-family:monospace;background:var(--surface2);padding:1px 6px;border-radius:3px">${esc(data.commit || '—')}</code>
+      </div>
+    </div>`;
+
+  // Pytest card
+  pytestCard.style.display = 'block';
+  const pt = data.pytest || {};
+  const ptFailed = pt.failed || 0;
+  const ptContent = document.getElementById('qa-pytest-content');
+  let ptHtml = `
+    <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="font-size:24px;font-weight:700;color:var(--text)">${pt.total || 0}</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase">Total</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;font-weight:700;color:var(--green)">${pt.passed || 0}</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase">Passed</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;font-weight:700;color:${ptFailed > 0 ? 'var(--red)' : 'var(--text3)'}">${ptFailed}</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase">Failed</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;font-weight:700;color:var(--text2)">${(pt.duration || 0).toFixed(1)}s</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase">Duration</div>
+      </div>
+    </div>`;
+
+  if (ptFailed > 0 && pt.failures && pt.failures.length > 0) {
+    ptHtml += `<details open><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--red);margin-bottom:8px">${ptFailed} failure${ptFailed !== 1 ? 's' : ''}</summary>`;
+    for (const f of pt.failures) {
+      ptHtml += `<div style="background:var(--surface2);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:10px;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:4px">${esc(f.name)}</div>
+        <pre style="font-size:11px;color:var(--text2);margin:0;white-space:pre-wrap;word-break:break-all">${esc(String(f.error || '').slice(0, 500))}</pre>
+      </div>`;
+    }
+    ptHtml += '</details>';
+  }
+  ptContent.innerHTML = ptHtml;
+
+  // Smoke card
+  smokeCard.style.display = 'block';
+  const sm = data.ux_smoke || {};
+  const smFailed = sm.failed || 0;
+  const smContent = document.getElementById('qa-smoke-content');
+  let smHtml = `
+    <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="font-size:24px;font-weight:700;color:var(--text)">${sm.total || 0}</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase">Total</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;font-weight:700;color:var(--green)">${sm.passed || 0}</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase">Passed</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:24px;font-weight:700;color:${smFailed > 0 ? 'var(--red)' : 'var(--text3)'}">${smFailed}</div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase">Failed</div>
+      </div>
+    </div>`;
+
+  if (sm.checks && sm.checks.length > 0) {
+    smHtml += '<table><thead><tr><th>Check</th><th>Status</th><th>Result</th><th>Note</th></tr></thead><tbody>';
+    for (const c of sm.checks) {
+      const icon = c.passed ? '✓' : '✕';
+      const iconColor = c.passed ? 'var(--green)' : 'var(--red)';
+      const rowBg = c.passed ? '' : 'background:rgba(239,68,68,0.04)';
+      smHtml += `<tr style="${rowBg}">
+        <td style="font-size:12px">${esc(c.name)}</td>
+        <td><code style="font-size:11px;background:var(--surface2);padding:1px 5px;border-radius:3px">${c.status || '—'}</code></td>
+        <td><span style="font-weight:600;color:${iconColor}">${icon}</span></td>
+        <td style="font-size:12px;color:var(--text3)">${esc(c.note || '')}</td>
+      </tr>`;
+    }
+    smHtml += '</tbody></table>';
+  }
+  smContent.innerHTML = smHtml;
+
+  // Auto-refresh if a run might be in progress (no results yet from this timestamp)
+  // Poll every 60s if on QA section
+  if (!qaRefreshTimer) {
+    qaRefreshTimer = setInterval(() => {
+      if (document.getElementById('section-qa')?.classList.contains('active')) {
+        loadQAResults();
+      } else {
+        clearInterval(qaRefreshTimer);
+        qaRefreshTimer = null;
+      }
+    }, 60000);
+  }
+}
+
+async function loadQALog() {
+  const el = document.getElementById('qa-log-content');
+  const data = await api('/api/qa/log?lines=30');
+  if (!data || !data.lines) {
+    el.innerHTML = '<div style="color:var(--text3)">No log yet.</div>';
+    return;
+  }
+  if (data.lines.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3)">Log is empty.</div>';
+    return;
+  }
+  el.innerHTML = data.lines.map(l => {
+    const cls = l.includes('FAIL') || l.includes('ERROR') ? 'log-line error'
+      : l.includes('PASS') || l.includes('pass') ? 'log-line info'
+      : 'log-line';
+    return `<div class="${cls}">${esc(l)}</div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runQA() {
+  const btn = document.getElementById('qa-run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Starting…';
+
+  const res = await api('/api/qa/run', { method: 'POST' });
+  if (res && res.status === 'started') {
+    toast('QA run started in background', 'success');
+    btn.innerHTML = '⏳ Running…';
+    // Poll for results every 10s for up to 2 minutes
+    let polls = 0;
+    const poll = setInterval(async () => {
+      polls++;
+      await loadQAResults();
+      await loadQALog();
+      if (polls >= 12) {
+        clearInterval(poll);
+        btn.disabled = false;
+        btn.innerHTML = '▶ Run Now';
+      }
+    }, 10000);
+  } else {
+    toast('Failed to start QA run', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Now';
+  }
 }
 </script>
 </body>
