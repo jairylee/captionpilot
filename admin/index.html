@@ -854,7 +854,7 @@ async function loadPending() {
     return;
   }
 
-  const staleStatuses = ['stale', 'completed', 'approved', 'scheduled'];
+  const staleStatuses = ['stale', 'completed', 'approved'];
 
   const pendingHtml = Object.entries(data).map(([account, sel]) => {
     const scores = sel.scores || [];
@@ -909,15 +909,47 @@ async function loadPending() {
               <button class="btn btn-green" onclick="approveSelection('${account}', this)">
                 ✓ Approve & Post
               </button>
+            ` : status === 'scheduled' ? `
+              <span style="font-size:12px;color:var(--text3)">📅 Posts at 6 PM</span>
             ` : ''}
             <button class="btn btn-danger btn-sm" onclick="clearStaleSelection('${account}', this)" title="Remove this entry from state">
               Clear
             </button>
           </div>
         </div>
-        ${!isStale
-          ? `<div class="thumb-grid">${gridHtml}</div>`
-          : `<div style="font-size:12px;color:var(--text3);font-style:italic">This entry is ${esc(status)} — click Clear to remove it.</div>`}
+        ${isStale
+          ? `<div style="font-size:12px;color:var(--text3);font-style:italic">This entry is ${esc(status)} — click Clear to remove it.</div>`
+          : status === 'scheduled'
+            ? (() => {
+                // Scheduled preview: selected photos + approved caption
+                const caption = sel.approved_caption || '';
+                const selectedScores = scores.filter((_, i) => selected.includes(i));
+                const previewStrip = selectedScores.map((s, idx) => {
+                  const fname = s.name || s.path?.split('/').pop() || '?';
+                  const isVideo = /\.(mov|mp4)$/i.test(fname);
+                  const isHero = idx === 0;
+                  return `<div style="position:relative;flex-shrink:0">
+                    <img src="${API_BASE}/api/thumbnails/${encodeURIComponent(account)}/${encodeURIComponent(fname)}"
+                         ${isVideo ? 'hidden' : ''}
+                         style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:2px solid var(--accent)"
+                         onerror="this.style.display='none'"
+                         loading="lazy" />
+                    ${isVideo ? `<div style="width:120px;height:120px;background:var(--surface2);border-radius:8px;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:36px">🎬</div>` : ''}
+                    ${isHero ? `<span style="position:absolute;top:4px;left:4px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px">COVER</span>` : ''}
+                    <div style="font-size:10px;color:var(--text3);text-align:center;margin-top:4px">${idx + 1} of ${selectedScores.length}</div>
+                  </div>`;
+                }).join('');
+                return `
+                  <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+                    <div style="display:flex;gap:8px;flex-shrink:0">${previewStrip}</div>
+                    <div style="flex:1;min-width:200px">
+                      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Approved Caption</div>
+                      <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.5;max-height:180px;overflow-y:auto">${caption ? esc(caption) : '<span style="color:var(--text3);font-style:italic">No caption saved</span>'}</div>
+                      <div style="font-size:11px;color:var(--text3);margin-top:6px">📅 Will post at 6 PM · ${selected.length} photo${selected.length !== 1 ? 's' : ''}</div>
+                    </div>
+                  </div>`;
+              })()
+            : `<div class="thumb-grid">${gridHtml}</div>`}
       </div>`;
   }).join('');
 
