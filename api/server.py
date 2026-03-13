@@ -75,10 +75,17 @@ def root():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[
+        "https://captionpilot.app",
+        "https://www.captionpilot.app",
+        "https://api.captionpilot.app",
+        "http://localhost:8766",
+        "http://localhost:3000",
+        "http://127.0.0.1:8766",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -164,12 +171,14 @@ def list_accounts(auth=Depends(verify_token)):
         files = state.get("files", {})
         pending = sum(1 for f in files.values() if f.get("status") == "pending")
         posted = sum(1 for f in files.values() if f.get("status") == "posted")
-        # Latest post timestamp
+        # Latest post timestamp + filename
         last_post = None
-        for f in files.values():
+        last_post_file = None
+        for fname, f in files.items():
             ts = f.get("posted_at")
             if ts and (last_post is None or ts > last_post):
                 last_post = ts
+                last_post_file = fname
         # Selection state
         sel_state = read_json(get_selection_state_path())
         sel = sel_state.get(name, {})
@@ -182,6 +191,7 @@ def list_accounts(auth=Depends(verify_token)):
             "pending_count": pending,
             "posted_count": posted,
             "last_post_date": last_post,
+            "last_post_file": last_post_file,
             "selection_status": sel.get("status"),
         })
     return accounts
@@ -522,6 +532,44 @@ def _load_tokens() -> dict:
 def _save_tokens(tokens: dict):
     APPROVAL_TOKENS_FILE.write_text(json.dumps(tokens, indent=2))
 
+@app.get("/api/approvals/history")
+def get_approvals_history(auth=Depends(verify_token)):
+    """Return the most recent 20 approval token entries, enriched with selection state."""
+    tokens = _load_tokens()
+    sel_state = read_json(get_selection_state_path())
+
+    entries = []
+    for token, meta in tokens.items():
+        account = meta.get("account", "")
+        acct_sel = sel_state.get(account, {})
+        scores = acct_sel.get("scores", [])
+        selected = acct_sel.get("selected", [])
+
+        entry = {
+            "token_prefix": token[:8] + "…",
+            "account": account,
+            "created_at": meta.get("created_at"),
+            "used": meta.get("used", False),
+            "used_at": meta.get("used_at"),
+            "invalidated": meta.get("invalidated", False),
+            "invalidated_reason": meta.get("invalidated_reason"),
+            "photos": [
+                {
+                    "index": i,
+                    "name": s.get("name", ""),
+                    "score": s.get("score"),
+                    "selected": i in selected,
+                }
+                for i, s in enumerate(scores)
+            ],
+        }
+        entries.append(entry)
+
+    # Sort by created_at desc, take most recent 20
+    entries.sort(key=lambda e: e.get("created_at") or "", reverse=True)
+    return entries[:20]
+
+
 @app.post("/api/approve/generate/{account}")
 def generate_approval_token(account: str, auth=Depends(verify_token)):
     """Generate a one-time approval token for an account's pending selection."""
@@ -581,20 +629,21 @@ def get_approval(token: str):
         "display_name": cfg.get("display_name", account),
         "instagram_handle": cfg.get("instagram_handle", f"@{account}"),
         "status": acct_state.get("status"),
-        "selected": acct_state.get("selected", []),
+        # Clip selected indices to valid range — stale state can have out-of-bounds indices
+        "selected": [i for i in acct_state.get("selected", []) if i < len(scores)],
         "scores": scores,
         "token": token,
     }
 
 @app.get("/api/photos/{token}/{index}")
 def serve_photo(token: str, index: int):
-    """Serve a photo file for the approval page. Token-gated."""
+    """Serve a photo file for the approval page. Token-gated.
+    Allows used tokens so the history view can still display photos."""
     from fastapi.responses import FileResponse
     tokens = _load_tokens()
     if token not in tokens:
         raise HTTPException(status_code=403, detail="Invalid token")
-    if tokens[token].get("used"):
-        raise HTTPException(status_code=410, detail="Token expired")
+    # Note: used tokens are allowed here so history view still works
 
     account = tokens[token]["account"]
     sel_state = read_json(get_selection_state_path())
@@ -945,7 +994,7 @@ async def confirm_video_approval(token: str, request: Request):
 
 # ─── Conversation endpoint ────────────────────────────────────────────────────
 
-BB_SERVER = "https://sauce-place-gaming-awesome.trycloudflare.com"
+BB_SERVER = "http://localhost:1234"   # local BB — no tunnel rotation issues
 BB_PASSWORD = "2JDT8bGV5IJ6"
 
 
@@ -979,36 +1028,54 @@ def _audit_event_to_message(ev: dict) -> "dict | None":
 
 
 def _fetch_bb_messages(handle: str) -> list:
+    """Fetch iMessages for a handle via local BlueBubbles REST API (POST endpoints)."""
     import urllib.request
-    import urllib.parse
     from datetime import timedelta
     try:
         cutoff = datetime.now(timezone.utc) - timedelta(days=30)
-        # List chats
-        chat_url = f"{BB_SERVER}/api/v1/chat?password={BB_PASSWORD}&limit=100"
-        req = urllib.request.Request(chat_url, headers={"Accept": "application/json", "User-Agent": "CaptionPilot/1.0"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            chats_data = json.loads(resp.read())
+
+        def bb_post(path: str, body: dict) -> dict:
+            data = json.dumps(body).encode()
+            req = urllib.request.Request(
+                f"{BB_SERVER}{path}?password={BB_PASSWORD}",
+                data=data,
+                headers={"Content-Type": "application/json", "User-Agent": "CaptionPilot/1.0"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read())
+
+        # Find the chat GUID for this handle (try exact match first, then phone/email normalisation)
+        chats_data = bb_post("/api/v1/chat/query", {"limit": 50, "offset": 0})
         chats = chats_data.get("data", [])
-        # Find chat matching handle
+
         target_guid = None
+        handle_lower = handle.lower().strip()
+        # Strip spaces/dashes from phone numbers for comparison
+        handle_norm = "".join(c for c in handle_lower if c.isdigit() or c in "@.+")
         for chat in chats:
-            participants = chat.get("participants", [])
-            for p in participants:
-                if p.get("address", "").lower() == handle.lower():
-                    target_guid = chat.get("guid")
-                    break
+            for p in chat.get("participants", []):
+                addr = p.get("address", "").lower().strip()
+                addr_norm = "".join(c for c in addr if c.isdigit() or c in "@.+")
+                if addr_lower := addr:
+                    if addr_lower == handle_lower or addr_norm == handle_norm:
+                        target_guid = chat.get("guid")
+                        break
             if target_guid:
                 break
+
         if not target_guid:
-            return []
-        # Get messages
-        encoded_guid = urllib.parse.quote(target_guid, safe="")
-        msg_url = (f"{BB_SERVER}/api/v1/chat/{encoded_guid}/message"
-                   f"?password={BB_PASSWORD}&limit=50&sort=DESC")
-        req2 = urllib.request.Request(msg_url, headers={"Accept": "application/json", "User-Agent": "CaptionPilot/1.0"})
-        with urllib.request.urlopen(req2, timeout=10) as resp2:
-            msgs_data = json.loads(resp2.read())
+            # Fall back: construct GUID directly
+            target_guid = f"iMessage;-;{handle}"
+
+        # Fetch messages via query endpoint
+        msgs_data = bb_post("/api/v1/message/query", {
+            "chatGuid": target_guid,
+            "limit": 75,
+            "sort": "DESC",
+            "after": int(cutoff.timestamp() * 1000),
+        })
+
         messages = []
         for msg in msgs_data.get("data", []):
             date_val = msg.get("dateCreated") or msg.get("date")
@@ -1023,12 +1090,16 @@ def _fetch_bb_messages(handle: str) -> list:
                     continue
             if ts_dt < cutoff:
                 continue
-            text = msg.get("text") or ""
+            text = (msg.get("text") or "").strip()
+            # Skip empty/attachment-only messages
+            if not text and not msg.get("attachments"):
+                continue
+            if not text and msg.get("attachments"):
+                text = f"[Attachment: {msg['attachments'][0].get('mimeType','file')}]"
             is_from_me = msg.get("isFromMe", False)
-            kind = "outbound" if is_from_me else "inbound"
             messages.append({
                 "ts": ts_dt.isoformat(),
-                "kind": kind,
+                "kind": "outbound" if is_from_me else "inbound",
                 "text": text,
                 "source": "bluebubbles",
                 "event_type": None,

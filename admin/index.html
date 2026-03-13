@@ -75,6 +75,22 @@
     .toast-item.error { border-left: 3px solid var(--red); }
     @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
+    /* ── Thumbnail grid for Pending page ── */
+    .thumb-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .thumb-card { position: relative; width: 80px; flex-shrink: 0; }
+    .thumb-frame { position: relative; width: 80px; height: 80px; border-radius: 6px; overflow: hidden; border: 2px solid transparent; }
+    .thumb-frame.selected { border-color: var(--accent); }
+    .thumb-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb-dim { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+    .thumb-score { position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.75); font-size: 9px; font-weight: 600; padding: 1px 4px; border-radius: 3px; }
+    .thumb-indicator { position: absolute; top: 2px; right: 2px; font-size: 10px; background: rgba(0,0,0,0.65); padding: 1px 3px; border-radius: 3px; }
+    .thumb-hero { position: absolute; top: 2px; left: 2px; background: var(--accent); color: #fff; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px; letter-spacing: 0.02em; }
+    .thumb-actions { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+    .thumb-actions .btn { padding: 2px 4px; font-size: 10px; width: 100%; justify-content: center; }
+    /* Inline thumbnail for activity/posts */
+    .inline-thumb { width: 32px; height: 32px; object-fit: cover; border-radius: 3px; vertical-align: middle; flex-shrink: 0; }
+    .strip-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+
     /* ── iMessage-style conversation bubbles ── */
     .chat-scroll { overflow-y: auto; max-height: 600px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
     .chat-wrap { max-width: 480px; margin: 0 auto; width: 100%; }
@@ -451,11 +467,18 @@ async function loadDashboard() {
   container.innerHTML = accounts.map(a => `
     <div class="card" style="padding:20px;cursor:pointer" onclick="openAccountDetail('${a.name}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
-        <div>
-          <div style="font-size:15px;font-weight:600">${esc(a.display_name)}</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px">${esc(a.instagram_handle)}</div>
+        <div style="display:flex;gap:12px;align-items:flex-start;flex:1;min-width:0">
+          ${a.last_post_file ? `
+            <img src="${API_BASE}/api/thumbnails/${encodeURIComponent(a.name)}/${encodeURIComponent(a.last_post_file)}"
+                 style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;background:var(--surface2)"
+                 onerror="this.style.display='none'" loading="lazy" title="Last posted photo" />
+          ` : `<div style="width:48px;height:48px;border-radius:6px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text3)">📷</div>`}
+          <div style="min-width:0;flex:1">
+            <div style="font-size:15px;font-weight:600">${esc(a.display_name)}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">${esc(a.instagram_handle)}</div>
+          </div>
         </div>
-        <span class="badge ${a.selection_status === 'pending' ? 'badge-yellow' : a.selection_status === 'approved' ? 'badge-green' : 'badge-gray'}">
+        <span class="badge ${a.selection_status === 'pending' ? 'badge-yellow' : a.selection_status === 'approved' ? 'badge-green' : 'badge-gray'}" style="margin-left:8px;flex-shrink:0">
           ${a.selection_status || 'idle'}
         </span>
       </div>
@@ -594,7 +617,7 @@ function switchDetailTab(tab, account, config, files, posts, enhancement) {
   const el = document.getElementById('detailTabContent');
   if (tab === 'config') el.innerHTML = renderConfigTab(account, config);
   else if (tab === 'media') el.innerHTML = renderMediaTab(account, files);
-  else if (tab === 'posts') el.innerHTML = renderPostsTab(posts);
+  else if (tab === 'posts') el.innerHTML = renderPostsTab(posts, account);
   else if (tab === 'tuner') el.innerHTML = renderTunerTab(enhancement);
 }
 
@@ -724,9 +747,22 @@ async function setFileStatus(account, filename, status, btn) {
   }
 }
 
-function renderPostsTab(posts) {
+function renderPostsTab(posts, account) {
   if (!posts) return '<div class="card" style="padding:24px;color:var(--text3)">No post data.</div>';
   const { posts: postList = [], batches = [] } = posts;
+  // Build thumbnail strip for a list of filenames (up to 5)
+  function thumbStrip(files, acct) {
+    if (!files || !files.length || !acct) return '<span style="color:var(--text3);font-size:12px">—</span>';
+    return `<div style="display:flex;gap:3px;align-items:center">
+      ${files.slice(0, 5).map(f => `
+        <img src="${API_BASE}/api/thumbnails/${encodeURIComponent(acct)}/${encodeURIComponent(f)}"
+             class="strip-thumb"
+             onerror="this.outerHTML='<span style=\\'font-size:18px\\'>📷</span>'"
+             loading="lazy" title="${esc(f)}" />
+      `).join('')}
+      ${files.length > 5 ? `<span style="font-size:11px;color:var(--text3);margin-left:2px">+${files.length - 5}</span>` : ''}
+    </div>`;
+  }
   return `
     <div style="display:flex;flex-direction:column;gap:16px">
       ${batches.length ? `
@@ -734,13 +770,13 @@ function renderPostsTab(posts) {
           <h3 style="font-size:14px;font-weight:600;margin:0 0 12px">Posted Batches</h3>
           <div class="card" style="overflow:hidden">
             <table>
-              <thead><tr><th>Date</th><th>Type</th><th>Files</th><th>Caption</th><th>URL</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Photos</th><th>Caption</th><th>URL</th></tr></thead>
               <tbody>
                 ${batches.map(b => `
                   <tr>
                     <td style="color:var(--text3);font-size:12px;white-space:nowrap">${b.ts ? shortDate(typeof b.ts === 'number' ? new Date(b.ts * 1000).toISOString() : b.ts) : '—'}</td>
                     <td><span class="badge badge-blue">${esc(b.post_type || 'carousel')}</span></td>
-                    <td style="color:var(--text3);font-size:12px">${b.count || (b.files?.length) || '?'} file(s)</td>
+                    <td>${thumbStrip(b.files, account)}</td>
                     <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(b.note || b.caption || '—')}</td>
                     <td>${b.url ? `<a href="${esc(b.url)}" target="_blank" style="color:var(--accent);font-size:12px">Open →</a>` : '—'}</td>
                   </tr>
@@ -755,10 +791,16 @@ function renderPostsTab(posts) {
           <h3 style="font-size:14px;font-weight:600;margin:0 0 12px">Individual Files (State v2)</h3>
           <div class="card" style="overflow:hidden">
             <table>
-              <thead><tr><th>File</th><th>Posted At</th><th>Method</th><th>URL</th></tr></thead>
+              <thead><tr><th></th><th>File</th><th>Posted At</th><th>Method</th><th>URL</th></tr></thead>
               <tbody>
                 ${postList.map(p => `
                   <tr>
+                    <td style="width:48px;padding:6px 8px">
+                      ${account ? `<img src="${API_BASE}/api/thumbnails/${encodeURIComponent(account)}/${encodeURIComponent(p.file)}"
+                           class="strip-thumb"
+                           onerror="this.style.display='none'"
+                           loading="lazy" />` : ''}
+                    </td>
                     <td style="font-family:monospace;font-size:11px">${esc(p.file)}</td>
                     <td style="color:var(--text3);font-size:12px">${p.posted_at ? shortDate(p.posted_at) : '—'}</td>
                     <td style="color:var(--text3);font-size:12px">${esc(p.post_method || '—')}</td>
@@ -802,8 +844,11 @@ async function runPipelineFromDetail(account, btn) {
 async function loadPending() {
   const container = document.getElementById('pendingContent');
   container.innerHTML = '<div style="color:var(--text3);font-size:13px">Refreshing approval state…</div>';
-  // Always refresh to reconcile stale data
-  const data = await api('/api/pending/selections/refresh');
+  // Always refresh to reconcile stale data; also load history in parallel
+  const [data, history] = await Promise.all([
+    api('/api/pending/selections/refresh'),
+    api('/api/approvals/history'),
+  ]);
   if (!data || !Object.keys(data).length) {
     container.innerHTML = '<div class="card" style="padding:24px;color:var(--text3);font-size:13px">No pending selections found.</div>';
     return;
@@ -811,11 +856,43 @@ async function loadPending() {
 
   const staleStatuses = ['stale', 'completed', 'approved', 'scheduled'];
 
-  container.innerHTML = Object.entries(data).map(([account, sel]) => {
+  const pendingHtml = Object.entries(data).map(([account, sel]) => {
     const scores = sel.scores || [];
     const selected = sel.selected || [];
     const status = sel.status || 'pending';
     const isStale = staleStatuses.includes(status);
+
+    // Build thumbnail grid for non-stale selections
+    const gridHtml = scores.map((s, i) => {
+      const fname = s.name || s.path?.split('/').pop() || '?';
+      const isSelected = selected.includes(i);
+      const isHero = selected.length > 0 && selected[0] === i;
+      const isVideo = /\.(mov|mp4)$/i.test(fname);
+      const scoreVal = s.score?.toFixed(1) ?? '?';
+      const scoreColor = s.score >= 40 ? 'var(--green)' : s.score >= 35 ? 'var(--yellow)' : 'var(--text3)';
+      return `
+        <div class="thumb-card">
+          <div class="thumb-frame ${isSelected ? 'selected' : ''}">
+            ${isVideo
+              ? `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px">🎬</div>`
+              : `<img src="${API_BASE}/api/thumbnails/${encodeURIComponent(account)}/${encodeURIComponent(fname)}"
+                      onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:22px\\'>📷</div>'"
+                      loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" />`
+            }
+            ${!isSelected ? '<div class="thumb-dim"></div>' : ''}
+            <div class="thumb-score" style="color:${scoreColor}">${scoreVal}</div>
+            <div class="thumb-indicator" style="color:${isSelected ? 'var(--accent)' : 'var(--red)'}">${isSelected ? '✓' : '✗'}</div>
+            ${isHero ? '<div class="thumb-hero">HERO</div>' : ''}
+          </div>
+          <div class="thumb-actions">
+            ${isSelected
+              ? `<button class="btn btn-danger" onclick="selAction('${account}','remove',${i},this)">Remove</button>`
+              : `<button class="btn btn-ghost" onclick="selAction('${account}','add',${i},this)">Add</button>
+                 <button class="btn btn-ghost" onclick="selAction('${account}','swap',${i},this)">Swap</button>`}
+          </div>
+        </div>`;
+    }).join('');
+
     return `
       <div class="card" style="padding:24px;margin-bottom:16px${isStale ? ';opacity:0.7' : ''}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -838,37 +915,53 @@ async function loadPending() {
             </button>
           </div>
         </div>
-        ${!isStale ? `
-        <div style="overflow-x:auto">
-          <table>
-            <thead><tr>
-              <th>#</th><th>File</th><th>Score</th><th>Sharp</th><th>Exposure</th><th>Contrast</th><th>Interest</th><th>Action</th>
-            </tr></thead>
-            <tbody>
-              ${scores.map((s, i) => `
-                <tr style="${selected.includes(i) ? 'background:rgba(59,130,246,0.06)' : ''}">
-                  <td>${i + 1}</td>
-                  <td style="font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name || s.path?.split('/').pop() || '?')}</td>
-                  <td style="font-weight:600;color:${s.score >= 40 ? 'var(--green)' : s.score >= 35 ? 'var(--yellow)' : 'var(--text3)'}">${s.score?.toFixed(1) ?? '?'}</td>
-                  <td style="color:var(--text3)">${s.sharpness?.toFixed(1) ?? '?'}</td>
-                  <td style="color:var(--text3)">${s.exposure?.toFixed(1) ?? '?'}</td>
-                  <td style="color:var(--text3)">${s.contrast?.toFixed(1) ?? '?'}</td>
-                  <td style="color:var(--text3)">${s.interest?.toFixed(1) ?? '?'}</td>
-                  <td>
-                    ${selected.includes(i)
-                      ? `<span class="badge badge-blue" style="margin-right:6px">✓ selected</span>
-                         <button class="btn btn-ghost btn-sm" onclick="selAction('${account}','remove',${i},this)">Remove</button>`
-                      : `<button class="btn btn-ghost btn-sm" onclick="selAction('${account}','add',${i},this)">Add</button>
-                         <button class="btn btn-ghost btn-sm" onclick="selAction('${account}','swap',${i},this)">Swap In</button>`}
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-        ` : `<div style="font-size:12px;color:var(--text3);font-style:italic">This entry is ${esc(status)} — click Clear to remove it.</div>`}
+        ${!isStale
+          ? `<div class="thumb-grid">${gridHtml}</div>`
+          : `<div style="font-size:12px;color:var(--text3);font-style:italic">This entry is ${esc(status)} — click Clear to remove it.</div>`}
       </div>`;
   }).join('');
+
+  // Approval History section
+  let historyHtml = '';
+  if (history && history.length) {
+    const rows = history.map(h => {
+      const photos = h.photos || [];
+      const strip = photos.slice(0, 6).map(p => {
+        const isVideo = /\.(mov|mp4)$/i.test(p.name || '');
+        return `<div style="position:relative;display:inline-block">
+          ${isVideo
+            ? `<div style="width:36px;height:36px;background:var(--surface2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px">🎬</div>`
+            : `<img src="${API_BASE}/api/thumbnails/${encodeURIComponent(h.account)}/${encodeURIComponent(p.name)}"
+                   style="width:36px;height:36px;object-fit:cover;border-radius:4px;display:block;opacity:${p.selected ? 1 : 0.4};border:${p.selected ? '2px solid var(--accent)' : '2px solid transparent'}"
+                   onerror="this.style.display='none'" loading="lazy" title="${esc(p.name)}" />`}
+        </div>`;
+      }).join('');
+      const statusLabel = h.invalidated ? 'invalidated' : h.used ? 'used' : 'unused';
+      const statusColor = h.invalidated ? 'badge-red' : h.used ? 'badge-green' : 'badge-yellow';
+      return `
+        <tr>
+          <td><span class="badge badge-blue" style="font-size:11px">${esc(h.account)}</span></td>
+          <td style="color:var(--text3);font-size:12px;white-space:nowrap">${h.created_at ? shortDate(h.created_at) : '—'}</td>
+          <td><span class="badge ${statusColor}">${statusLabel}</span></td>
+          <td style="font-size:11px;color:var(--text3)">${h.invalidated_reason ? esc(h.invalidated_reason) : (h.used_at ? `Used ${relTime(h.used_at)}` : '—')}</td>
+          <td><div style="display:flex;gap:3px;align-items:center">${strip}</div></td>
+        </tr>`;
+    }).join('');
+    historyHtml = `
+      <div style="margin-top:32px">
+        <h2 style="font-size:16px;font-weight:600;margin:0 0 14px">Approval History</h2>
+        <div class="card" style="overflow:hidden">
+          <table>
+            <thead><tr>
+              <th>Account</th><th>Created</th><th>Status</th><th>Note</th><th>Photos</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  container.innerHTML = pendingHtml + historyHtml;
 }
 
 async function clearStaleSelection(account, btn) {
@@ -1037,6 +1130,25 @@ function renderActivityFeed() {
     video_decision: '🎬',
   };
 
+  const currentAccount = document.getElementById('activityAccount').value;
+  // Photo-related event types that might have filenames
+  const photoEvents = new Set(['photos_selected', 'approval_sent', 'post_completed', 'post_scheduled']);
+
+  // Extract filenames from event data (gracefully handles missing fields)
+  function extractFilenames(eventName, data) {
+    if (!data) return [];
+    const names = [];
+    // Direct filename fields
+    for (const key of ['file', 'filename', 'name']) {
+      if (data[key] && typeof data[key] === 'string') names.push(data[key]);
+    }
+    // Array of files
+    if (Array.isArray(data.files)) {
+      data.files.forEach(f => { if (typeof f === 'string') names.push(f); });
+    }
+    return names;
+  }
+
   container.innerHTML = `
     <div class="card" style="overflow:hidden">
       ${events.map(e => {
@@ -1046,6 +1158,16 @@ function renderActivityFeed() {
           .filter(([k]) => k !== 'pipeline_ok' || isError)
           .map(([k, v]) => `<span style="color:var(--text3)">${esc(k)}:</span> ${esc(JSON.stringify(v))}`)
           .join(' &nbsp;·&nbsp; ');
+        const filenames = photoEvents.has(e.event) ? extractFilenames(e.event, e.data) : [];
+        const thumbsHtml = filenames.length && currentAccount
+          ? `<div style="display:flex;gap:4px;align-items:center;margin-top:5px">
+               ${filenames.map(f => `
+                 <img src="${API_BASE}/api/thumbnails/${encodeURIComponent(currentAccount)}/${encodeURIComponent(f)}"
+                      class="inline-thumb"
+                      onerror="this.style.display='none'"
+                      loading="lazy" title="${esc(f)}" />`).join('')}
+             </div>`
+          : '';
         return `
           <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--border);${isError ? 'background:rgba(239,68,68,0.04)' : ''}">
             <span style="font-size:16px;min-width:22px;text-align:center">${icon}</span>
@@ -1056,6 +1178,7 @@ function renderActivityFeed() {
                 <span style="font-size:11px;color:var(--text3)">${e.ts ? shortDate(e.ts) : ''}</span>
               </div>
               ${dataStr ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dataStr}</div>` : ''}
+              ${thumbsHtml}
             </div>
           </div>`;
       }).join('')}
