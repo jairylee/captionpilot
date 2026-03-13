@@ -1,3 +1,7 @@
 {
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/approve", "destination": "/approve/index.html" },
+    { "source": "/video-approve", "destination": "/video-approve/index.html" }
+  ]
 }

@@ -616,6 +616,167 @@ async def confirm_approval(token: str, request: Request):
         raise HTTPException(status_code=400, detail="action must be: post | swap | add | remove")
 
 
+# ─── Video approval token system ─────────────────────────────────────────────
+
+VIDEO_APPROVAL_TOKENS_FILE = WORKSPACE / ".video-approval-tokens.json"
+
+
+def _load_video_tokens() -> dict:
+    if VIDEO_APPROVAL_TOKENS_FILE.exists():
+        try:
+            return json.loads(VIDEO_APPROVAL_TOKENS_FILE.read_text())
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_video_tokens(tokens: dict):
+    VIDEO_APPROVAL_TOKENS_FILE.write_text(json.dumps(tokens, indent=2))
+
+
+@app.post("/api/video-approve/generate/{account}")
+def generate_video_approval_token(account: str, auth=Depends(verify_token)):
+    """Generate a one-time video approval token."""
+    video_queue_file = WORKSPACE / f".video-queue-{account}.json"
+    if not video_queue_file.exists():
+        raise HTTPException(status_code=404, detail=f"No pending video for '{account}'")
+
+    video_data = read_json(video_queue_file)
+    token = _secrets.token_urlsafe(24)
+    tokens = _load_video_tokens()
+    tokens[token] = {
+        "account": account,
+        "created_at": utcnow(),
+        "used": False,
+        "video_path": video_data.get("video_path", ""),
+        "poster_path": video_data.get("poster_path", ""),
+        "caption": video_data.get("caption", ""),
+        "duration": video_data.get("duration", 0),
+    }
+    _save_video_tokens(tokens)
+    url = f"https://captionpilot.app/video-approve?t={token}"
+    return {"token": token, "url": url, "account": account}
+
+
+@app.get("/api/video-approve/{token}")
+def get_video_approval(token: str):
+    """Public endpoint — returns video info for the approval page."""
+    tokens = _load_video_tokens()
+    if token not in tokens:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+    meta = tokens[token]
+    if meta.get("used"):
+        raise HTTPException(status_code=410, detail="This approval link has already been used")
+
+    account = meta["account"]
+    cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
+    cfg = read_json(cfg_path)
+
+    return {
+        "account": account,
+        "display_name": cfg.get("display_name", account),
+        "instagram_handle": cfg.get("instagram_handle", f"@{account}"),
+        "video_path": meta.get("video_path", ""),
+        "poster_url": f"https://api.captionpilot.app/api/video-approve/{token}/poster",
+        "caption": meta.get("caption", ""),
+        "duration": meta.get("duration", 0),
+        "token": token,
+    }
+
+
+@app.get("/api/video-approve/{token}/poster")
+def serve_video_poster(token: str):
+    """Serve the video poster frame."""
+    from fastapi.responses import FileResponse
+    tokens = _load_video_tokens()
+    if token not in tokens:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    if tokens[token].get("used"):
+        raise HTTPException(status_code=410, detail="Token expired")
+
+    poster_path = Path(tokens[token].get("poster_path", ""))
+    if not poster_path.exists():
+        # Try to generate a poster from the video using ffmpeg
+        video_path = Path(tokens[token].get("video_path", ""))
+        if video_path.exists():
+            import subprocess as sp
+            poster_path = video_path.with_suffix(".poster.jpg")
+            sp.run(
+                ["ffmpeg", "-i", str(video_path), "-vframes", "1", "-q:v", "2",
+                 str(poster_path), "-y"],
+                capture_output=True, timeout=30,
+            )
+        if not poster_path.exists():
+            raise HTTPException(status_code=404, detail="Poster not available")
+
+    return FileResponse(str(poster_path), media_type="image/jpeg")
+
+
+@app.post("/api/video-approve/{token}/confirm")
+async def confirm_video_approval(token: str, request: Request):
+    """Public endpoint — processes the video approval decision."""
+    tokens = _load_video_tokens()
+    if token not in tokens:
+        raise HTTPException(status_code=404, detail="Invalid or expired token")
+    meta = tokens[token]
+    if meta.get("used"):
+        raise HTTPException(status_code=410, detail="Already used")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    action = body.get("action")  # "reel" | "feed" | "skip"
+    if action not in ("reel", "feed", "skip"):
+        raise HTTPException(status_code=400, detail="action must be: reel | feed | skip")
+
+    account = meta["account"]
+
+    # Mark token used
+    meta["used"] = True
+    meta["used_at"] = utcnow()
+    meta["decision"] = action
+    tokens[token] = meta
+    _save_video_tokens(tokens)
+
+    if action == "skip":
+        video_queue_file = WORKSPACE / f".video-queue-{account}.json"
+        if video_queue_file.exists():
+            qdata = read_json(video_queue_file)
+            qdata["decision"] = "skip"
+            qdata["decided_at"] = utcnow()
+            write_json(video_queue_file, qdata)
+        return {"ok": True, "message": "Video skipped."}
+
+    # reel or feed — write decision to queue file and trigger pipeline
+    video_queue_file = WORKSPACE / f".video-queue-{account}.json"
+    if video_queue_file.exists():
+        qdata = read_json(video_queue_file)
+        qdata["decision"] = action
+        qdata["decided_at"] = utcnow()
+        write_json(video_queue_file, qdata)
+
+    # Trigger video_decision_watcher to pick up the decision
+    script_path = SCRIPTS_DIR / "video_decision_watcher.py"
+    cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
+    try:
+        result = subprocess.run(
+            ["python3", str(script_path), "--account", account, "--config", str(cfg_path),
+             "--process-decision"],
+            cwd=str(WORKSPACE),
+            timeout=120,
+            capture_output=True,
+            text=True,
+        )
+        print(f"[video] Decision watcher output: {result.stdout[:200]}")
+    except Exception as e:
+        print(f"[video] Warning: could not trigger watcher: {e}")
+
+    msg = "Publishing as a Reel!" if action == "reel" else "Publishing as a Feed video!"
+    return {"ok": True, "message": msg}
+
+
 # ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print(f"[admin] Workspace: {WORKSPACE}")

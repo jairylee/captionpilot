@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caption Pilot — Video Approval</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:wght@600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #faf8f5;
+      --accent:  #5c7e6c;
+      --accent-hover: #4a6a59;
+      --border:  #e4ddd5;
+      --text:    #1a1714;
+      --muted:   #7a6f66;
+      --radius:  100px;
+      --card-radius: 16px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .page {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      padding-top: 8px;
+    }
+    .logo {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+    .account-name {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .account-handle {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── Poster card ── */
+    .poster-card {
+      position: relative;
+      border-radius: var(--card-radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #e4ddd5;
+      aspect-ratio: 9 / 16;
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+    .poster-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .poster-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 40px;
+    }
+    .duration-badge {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(26, 23, 20, 0.72);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Caption preview ── */
+    .caption-block {
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 14px 16px;
+      background: #fff;
+    }
+    .caption-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+    .caption-text {
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--text);
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: pre-wrap;
+    }
+
+    /* ── Buttons ── */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px 24px;
+      border-radius: var(--radius);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, transform 0.1s;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 2px solid var(--border);
+    }
+    .btn-outline:hover:not(:disabled) { border-color: var(--text); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 24px;
+    }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); }
+
+    .btn-hint {
+      font-size: 12px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.75);
+      display: block;
+      margin-top: 2px;
+    }
+    .btn-outline .btn-hint {
+      color: var(--muted);
+    }
+
+    /* ── Explainer ── */
+    .explainer {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* ── States ── */
+    .state-view {
+      display: none;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .state-view.active { display: flex; }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 60px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .message-card {
+      border-radius: var(--card-radius);
+      padding: 32px 24px;
+      text-align: center;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+    .message-card .emoji { font-size: 40px; margin-bottom: 12px; }
+    .message-card h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    .message-card p {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading state -->
+<div id="view-loading" class="state-view active">
+  <div class="spinner"></div>
+</div>
+
+<!-- Error: 404 -->
+<div id="view-404" class="state-view">
+  <div class="page">
+    <header><div class="logo">Caption Pilot</div></header>
+    <div class="message-card">
+      <div class="emoji">🔗</div>
+      <h2>Link not found</h2>
+      <p>Invalid or expired link. Ask for a new one.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Error: 410 already used -->
+<div id="view-410" class="state-view">
+  <div class="page">
+    <header><div class="logo">Caption Pilot</div></header>
+    <div class="message-card">
+      <div class="emoji">✅</div>
+      <h2>Already decided</h2>
+      <p>Check Instagram — your video is on its way!</p>
+    </div>
+  </div>
+</div>
+
+<!-- Success states -->
+<div id="view-success" class="state-view">
+  <div class="page">
+    <header><div class="logo">Caption Pilot</div></header>
+    <div class="message-card">
+      <div class="emoji" id="success-emoji">🎬</div>
+      <h2 id="success-title">Publishing!</h2>
+      <p id="success-msg">Usually live within a few minutes.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Main approval view -->
+<div id="view-main" class="state-view">
+  <div class="page">
+
+    <header>
+      <div class="logo">Caption Pilot</div>
+      <div class="account-name" id="display-name"></div>
+      <div class="account-handle" id="instagram-handle"></div>
+    </header>
+
+    <!-- Poster -->
+    <div class="poster-card" id="poster-card">
+      <div class="poster-placeholder" id="poster-placeholder">🎬</div>
+      <img id="poster-img" alt="Video preview" style="display:none;"
+           onload="document.getElementById('poster-placeholder').style.display='none'; this.style.display='block';"
+           onerror="this.style.display='none'; document.getElementById('poster-placeholder').style.display='flex';" />
+      <div class="duration-badge" id="duration-badge" style="display:none;"></div>
+    </div>
+
+    <!-- Caption preview -->
+    <div class="caption-block">
+      <div class="caption-label">Caption preview</div>
+      <div class="caption-text" id="caption-text">Loading…</div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="actions" id="actions">
+      <button class="btn btn-primary" id="btn-reel" onclick="decide('reel')">
+        Post as Reel
+        <span class="btn-hint">Best reach · new audiences</span>
+      </button>
+      <button class="btn btn-outline" id="btn-feed" onclick="decide('feed')">
+        Post as Feed Video
+        <span class="btn-hint">Stays on your grid</span>
+      </button>
+      <button class="btn btn-ghost" id="btn-skip" onclick="decide('skip')">
+        Skip this video
+      </button>
+    </div>
+
+    <p class="explainer">
+      Reels reach new audiences. Feed videos are for your existing followers.
+    </p>
+
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'https://api.captionpilot.app';
+  const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+
+  let TOKEN = null;
+
+  function showView(id) {
+    document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return null;
+    const s = Math.round(seconds);
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return `${m}:${rem.toString().padStart(2, '0')}`;
+  }
+
+  async function loadData() {
+    const params = new URLSearchParams(window.location.search);
+    TOKEN = params.get('t');
+
+    if (!TOKEN) {
+      showView('view-404');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}`, {
+        headers: { 'User-Agent': UA },
+      });
+
+      if (res.status === 404) { showView('view-404'); return; }
+      if (res.status === 410) { showView('view-410'); return; }
+      if (!res.ok) { showView('view-404'); return; }
+
+      const data = await res.json();
+
+      // Populate header
+      document.getElementById('display-name').textContent = data.display_name || '';
+      document.getElementById('instagram-handle').textContent = data.instagram_handle || '';
+
+      // Poster
+      const img = document.getElementById('poster-img');
+      img.src = data.poster_url;
+
+      // Duration
+      const dur = formatDuration(data.duration);
+      if (dur) {
+        const badge = document.getElementById('duration-badge');
+        badge.textContent = dur;
+        badge.style.display = 'block';
+      }
+
+      // Caption
+      document.getElementById('caption-text').textContent =
+        data.caption || '(No caption)';
+
+      showView('view-main');
+
+    } catch (err) {
+      console.error(err);
+      showView('view-404');
+    }
+  }
+
+  async function decide(action) {
+    // Disable all buttons immediately
+    ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
+      document.getElementById(id).disabled = true;
+    });
+
+    try {
+      const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': UA,
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (res.status === 410) {
+        showView('view-410');
+        return;
+      }
+
+      if (!res.ok) {
+        // Re-enable on error
+        ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
+          document.getElementById(id).disabled = false;
+        });
+        alert('Something went wrong. Please try again.');
+        return;
+      }
+
+      // Show success
+      if (action === 'reel') {
+        document.getElementById('success-emoji').textContent = '🎬';
+        document.getElementById('success-title').textContent = 'Publishing as a Reel!';
+        document.getElementById('success-msg').textContent = 'Usually live within a few minutes.';
+      } else if (action === 'feed') {
+        document.getElementById('success-emoji').textContent = '📹';
+        document.getElementById('success-title').textContent = 'Publishing as a Feed video!';
+        document.getElementById('success-msg').textContent = "It'll appear on your grid shortly.";
+      } else {
+        document.getElementById('success-emoji').textContent = '⏭️';
+        document.getElementById('success-title').textContent = 'Skipped';
+        document.getElementById('success-msg').textContent = 'Nothing will be posted.';
+      }
+      showView('view-success');
+
+    } catch (err) {
+      console.error(err);
+      ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
+        document.getElementById(id).disabled = false;
+      });
+      alert('Network error. Please try again.');
+    }
+  }
+
+  // Boot
+  loadData();
+</script>
+</body>
+</html>
