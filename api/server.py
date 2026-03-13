@@ -396,6 +396,12 @@ def refresh_pending_selections(auth=Depends(verify_token)):
     if changed:
         write_json(sel_path, sel_state)
 
+    # Clip selected indices to valid range before returning (stale state guard)
+    for acct_state in sel_state.values():
+        scores = acct_state.get("scores", [])
+        if scores and "selected" in acct_state:
+            acct_state["selected"] = [i for i in acct_state["selected"] if i < len(scores)]
+
     return sel_state
 
 
