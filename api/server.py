@@ -919,19 +919,27 @@ def serve_video_poster(token: str):
     if tokens[token].get("used"):
         raise HTTPException(status_code=410, detail="Token expired")
 
-    poster_path = Path(tokens[token].get("poster_path", ""))
-    if not poster_path.exists():
-        # Try to generate a poster from the video using ffmpeg
+    poster_path_str = tokens[token].get("poster_path", "")
+    poster_path = Path(poster_path_str) if poster_path_str else None
+
+    # Generate poster if missing or invalid
+    if not poster_path or not poster_path.is_file():
         video_path = Path(tokens[token].get("video_path", ""))
-        if video_path.exists():
-            import subprocess as sp
-            poster_path = video_path.with_suffix(".poster.jpg")
+        if video_path.is_file():
+            import subprocess as sp, tempfile as _tmp
+            # Write poster to a temp dir so we don't need write access to the album folder
+            tmp_dir = Path(_tmp.mkdtemp())
+            poster_path = tmp_dir / f"{token[:16]}.poster.jpg"
             sp.run(
-                ["ffmpeg", "-i", str(video_path), "-vframes", "1", "-q:v", "2",
-                 str(poster_path), "-y"],
+                ["/opt/homebrew/bin/ffmpeg", "-i", str(video_path),
+                 "-vframes", "1", "-q:v", "2", str(poster_path), "-y"],
                 capture_output=True, timeout=30,
             )
-        if not poster_path.exists():
+            if poster_path.is_file():
+                # Cache it back into the token for future calls
+                tokens[token]["poster_path"] = str(poster_path)
+                _save_video_tokens(tokens)
+        if not poster_path or not poster_path.is_file():
             raise HTTPException(status_code=404, detail="Poster not available")
 
     return FileResponse(str(poster_path), media_type="image/jpeg")
