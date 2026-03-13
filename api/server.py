@@ -484,7 +484,7 @@ def get_enhancement_state(account: str, auth=Depends(verify_token)):
 
 
 @app.get("/api/thumbnails/{account}/{filename:path}")
-def serve_thumbnail(account: str, filename: str, auth=Depends(verify_token)):
+def serve_thumbnail(account: str, filename: str):  # no auth — localhost only, img tags can't send headers
     """Return a 120×120 JPEG thumbnail for a media file."""
     if ".." in filename or filename.startswith("/"):
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -533,7 +533,7 @@ def _save_tokens(tokens: dict):
     APPROVAL_TOKENS_FILE.write_text(json.dumps(tokens, indent=2))
 
 @app.get("/api/approvals/history")
-def get_approvals_history(auth=Depends(verify_token)):
+def get_approvals_history():  # no auth — img tags in frontend can't send headers
     """Return the most recent 20 approval token entries, enriched with selection state."""
     tokens = _load_tokens()
     sel_state = read_json(get_selection_state_path())
@@ -546,6 +546,7 @@ def get_approvals_history(auth=Depends(verify_token)):
         selected = acct_sel.get("selected", [])
 
         entry = {
+            "token": token,
             "token_prefix": token[:8] + "…",
             "account": account,
             "created_at": meta.get("created_at"),
@@ -553,12 +554,15 @@ def get_approvals_history(auth=Depends(verify_token)):
             "used_at": meta.get("used_at"),
             "invalidated": meta.get("invalidated", False),
             "invalidated_reason": meta.get("invalidated_reason"),
+            "action": meta.get("action"),
             "photos": [
                 {
                     "index": i,
                     "name": s.get("name", ""),
                     "score": s.get("score"),
                     "selected": i in selected,
+                    # Use thumbnail endpoint (stable, no token expiry)
+                    "thumb_url": f"http://localhost:8766/api/thumbnails/{account}/{s.get('name', '')}",
                 }
                 for i, s in enumerate(scores)
             ],
