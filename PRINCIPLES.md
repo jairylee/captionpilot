@@ -37,6 +37,9 @@ No shared state between customers. No shared directories. No shared sessions. Cr
 ## 10. Stability > Features
 A feature that breaks existing behavior is worth negative value. QA runs after every commit. No feature ships without passing the full test suite. When in doubt, ship nothing and ask.
 
+## 11. Docs Ship with Features
+Every feature commit should be followed by a `bash scripts/update_docs.sh` run. The post-commit hook warns when feature code changes without a docs update. CHANGELOG.md is the canonical record of what shipped and when.
+
 ---
 
 ## Team Roles
