@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Caption Pilot — Approve Photos</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #FF6B35;
+      --bg: #0f0f0f;
+      --card-bg: #1a1a1a;
+      --text: #f0f0f0;
+      --muted: #888;
+      --border: #2a2a2a;
+      --selected-border: #FF6B35;
+      --dim: rgba(0,0,0,0.55);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100dvh;
+      padding-bottom: 90px;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    .header {
+      padding: 20px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-logo {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .header-name {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .header-handle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ─── States ─────────────────────────────── */
+    .state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60dvh;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .state-icon { font-size: 52px; margin-bottom: 16px; }
+    .state-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .state-subtitle { font-size: 15px; color: var(--muted); line-height: 1.5; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Grid ───────────────────────────────── */
+    .grid-section { padding: 16px 12px 8px; }
+    .grid-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    /* ─── Photo card ─────────────────────────── */
+    .card {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: border-color 0.15s, transform 0.1s;
+      background: var(--card-bg);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .card.selected {
+      border-color: var(--selected-border);
+    }
+    .card:active { transform: scale(0.97); }
+
+    .card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .card-dim {
+      position: absolute;
+      inset: 0;
+      background: var(--dim);
+      transition: opacity 0.15s;
+    }
+    .card.selected .card-dim { opacity: 0; }
+
+    /* checkmark overlay */
+    .card-check {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transform: scale(0.7);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .card.selected .card-check {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .card-check svg {
+      width: 14px; height: 14px;
+      stroke: white;
+      stroke-width: 2.5;
+      fill: none;
+    }
+
+    /* score badge */
+    .card-score {
+      position: absolute;
+      bottom: 7px;
+      right: 7px;
+      background: rgba(0,0,0,0.72);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 5px;
+      padding: 2px 6px;
+      line-height: 1.4;
+      letter-spacing: 0.02em;
+    }
+
+    /* ─── Bottom bar ─────────────────────────── */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15,15,15,0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 20;
+    }
+    .bottom-count {
+      flex: 1;
+      font-size: 15px;
+      color: var(--muted);
+    }
+    .bottom-count strong { color: var(--text); }
+    .btn-post {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 28px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-post:active { opacity: 0.85; transform: scale(0.97); }
+    .btn-post:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ─── Hidden ─────────────────────────────── */
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Header (filled by JS) -->
+  <div class="header" id="header" hidden>
+    <div class="header-logo">Caption Pilot</div>
+    <div class="header-name" id="header-name">—</div>
+    <div class="header-handle" id="header-handle">—</div>
+  </div>
+
+  <!-- Loading -->
+  <div class="state" id="state-loading">
+    <div class="spinner"></div>
+    <div class="state-subtitle">Loading your photos…</div>
+  </div>
+
+  <!-- Error states -->
+  <div class="state" id="state-used" hidden>
+    <div class="state-icon">🔒</div>
+    <div class="state-title">Already used</div>
+    <div class="state-subtitle">This approval link has already been used.</div>
+  </div>
+  <div class="state" id="state-notfound" hidden>
+    <div class="state-icon">❓</div>
+    <div class="state-title">Link not found</div>
+    <div class="state-subtitle">Invalid or expired link. Ask for a new one.</div>
+  </div>
+  <div class="state" id="state-error" hidden>
+    <div class="state-icon">⚠️</div>
+    <div class="state-title">Something went wrong</div>
+    <div class="state-subtitle" id="state-error-msg">Please try again.</div>
+  </div>
+
+  <!-- Success -->
+  <div class="state" id="state-success" hidden>
+    <div class="state-icon">🚀</div>
+    <div class="state-title">Posting now!</div>
+    <div class="state-subtitle">Check Instagram in a few minutes. Your post is on its way.</div>
+  </div>
+
+  <!-- Photo grid -->
+  <div id="content" hidden>
+    <div class="grid-section">
+      <div class="grid-label" id="grid-label">All photos — tap to select</div>
+      <div class="grid" id="photo-grid"></div>
+    </div>
+  </div>
+
+  <!-- Sticky bottom bar -->
+  <div class="bottom-bar" id="bottom-bar" hidden>
+    <div class="bottom-count"><strong id="sel-count">0</strong> selected</div>
+    <button class="btn-post" id="btn-post" onclick="postNow()">POST NOW</button>
+  </div>
+
+<script>
+  const API = 'https://api.captionpilot.app';
+  const params = new URLSearchParams(location.search);
+  const TOKEN = params.get('t');
+
+  let DATA = null;        // full API response
+  let selected = [];      // current selected indices
+
+  // ─── Show/hide helpers ──────────────────────────────────────────────────────
+  function showOnly(id) {
+    ['state-loading','state-used','state-notfound','state-error','state-success','content']
+      .forEach(s => document.getElementById(s).hidden = (s !== id));
+    document.getElementById('header').hidden = !['content'].includes(id);
+    document.getElementById('bottom-bar').hidden = !['content'].includes(id);
+  }
+
+  function showError(msg) {
+    document.getElementById('state-error-msg').textContent = msg || 'Please try again.';
+    showOnly('state-error');
+  }
+
+  // ─── Fetch data ─────────────────────────────────────────────────────────────
+  async function load() {
+    if (!TOKEN) { showOnly('state-notfound'); return; }
+    try {
+      const res = await fetch(`${API}/api/approve/${TOKEN}`);
+      if (res.status === 410) { showOnly('state-used'); return; }
+      if (res.status === 404) { showOnly('state-notfound'); return; }
+      if (!res.ok) { showError(`Server error (${res.status})`); return; }
+      DATA = await res.json();
+      selected = [...(DATA.selected || [])];
+      render();
+    } catch(e) {
+      showError('Could not connect to the server. Check your connection.');
+    }
+  }
+
+  // ─── Render grid ────────────────────────────────────────────────────────────
+  function render() {
+    document.getElementById('header-name').textContent = DATA.display_name || DATA.account;
+    document.getElementById('header-handle').textContent = DATA.instagram_handle || '';
+
+    const grid = document.getElementById('photo-grid');
+    grid.innerHTML = '';
+
+    (DATA.scores || []).forEach((photo, i) => {
+      const card = document.createElement('div');
+      card.className = 'card' + (selected.includes(i) ? ' selected' : '');
+      card.dataset.index = i;
+
+      const img = document.createElement('img');
+      img.src = photo.photo_url;
+      img.alt = `Photo ${i+1}`;
+      img.loading = 'lazy';
+
+      const dim = document.createElement('div');
+      dim.className = 'card-dim';
+
+      const check = document.createElement('div');
+      check.className = 'card-check';
+      check.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+      const score = document.createElement('div');
+      score.className = 'card-score';
+      score.textContent = `⭐ ${Math.round(photo.score || 0)}`;
+
+      card.appendChild(img);
+      card.appendChild(dim);
+      card.appendChild(check);
+      card.appendChild(score);
+      card.addEventListener('click', () => togglePhoto(i, card));
+      grid.appendChild(card);
+    });
+
+    updateBar();
+    showOnly('content');
+  }
+
+  // ─── Toggle photo ───────────────────────────────────────────────────────────
+  async function togglePhoto(index, card) {
+    const isSelected = selected.includes(index);
+    const action = isSelected ? 'remove' : 'add';
+
+    // Optimistic UI
+    if (isSelected) {
+      selected = selected.filter(i => i !== index);
+      card.classList.remove('selected');
+    } else {
+      selected.push(index);
+      card.classList.add('selected');
+    }
+    updateBar();
+
+    try {
+      const res = await fetch(`${API}/api/approve/${TOKEN}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, photo_num: index }),
+      });
+      if (res.status === 410) { showOnly('state-used'); return; }
+      if (!res.ok) {
+        // Revert on error
+        if (isSelected) { selected.push(index); card.classList.add('selected'); }
+        else { selected = selected.filter(i => i !== index); card.classList.remove('selected'); }
+        updateBar();
+      } else {
+        const data = await res.json();
+        if (data.selected) {
+          selected = data.selected;
+          syncCardStates();
+          updateBar();
+        }
+      }
+    } catch(e) {
+      // Network error — keep optimistic state, user can retry via POST NOW
+    }
+  }
+
+  function syncCardStates() {
+    document.querySelectorAll('.card').forEach(card => {
+      const i = parseInt(card.dataset.index);
+      if (selected.includes(i)) card.classList.add('selected');
+      else card.classList.remove('selected');
+    });
+  }
+
+  // ─── Update bottom bar ──────────────────────────────────────────────────────
+  function updateBar() {
+    document.getElementById('sel-count').textContent = selected.length;
+    document.getElementById('btn-post').disabled = selected.length === 0;
+  }
+
+  // ─── POST NOW ───────────────────────────────────────────────────────────────
+  async function postNow() {
+    const btn = document.getElementById('btn-post');
+    btn.disabled = true;
+    btn.textContent = 'Posting…';
+
+    try {
+      const res = await fetch(`${API}/api/approve/${TOKEN}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'post', selected }),
+      });
+      if (res.status === 410) { showOnly('state-used'); return; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError(err.detail || `Server error (${res.status})`);
+        return;
+      }
+      showOnly('state-success');
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = 'POST NOW';
+      showError('Could not connect. Check your connection and try again.');
+    }
+  }
+
+  // ─── Boot ───────────────────────────────────────────────────────────────────
+  load();
+</script>
+</body>
+</html>

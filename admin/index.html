@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caption Pilot — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface2: #1a1a1a;
+      --border: #242424;
+      --border2: #2e2e2e;
+      --accent: #3b82f6;
+      --accent-dim: #1d4ed8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --text: #e5e7eb;
+      --text2: #9ca3af;
+      --text3: #6b7280;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    .nav-link { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 6px; color: var(--text2); cursor: pointer; transition: all 0.15s; font-size: 14px; font-weight: 500; }
+    .nav-link:hover { background: var(--surface2); color: var(--text); }
+    .nav-link.active { background: var(--surface2); color: var(--text); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+    .badge-green { background: rgba(16,185,129,0.15); color: var(--green); }
+    .badge-yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
+    .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge-blue { background: rgba(59,130,246,0.15); color: var(--accent); }
+    .badge-gray { background: rgba(107,114,128,0.2); color: var(--text3); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+    .btn-danger:hover { background: rgba(239,68,68,0.1); }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-green:hover { background: #059669; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .tab-btn { padding: 7px 16px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; border: none; background: transparent; color: var(--text2); transition: all 0.15s; }
+    .tab-btn.active { background: var(--surface2); color: var(--text); }
+    .tab-btn:hover { color: var(--text); }
+    input, textarea, select { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 6px; padding: 7px 10px; font-size: 13px; outline: none; width: 100%; }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+    label { font-size: 12px; color: var(--text2); font-weight: 500; display: block; margin-bottom: 4px; }
+    .log-line { font-size: 12px; font-family: 'SF Mono', 'Menlo', monospace; padding: 1px 0; color: var(--text2); }
+    .log-line.error { color: #f87171; }
+    .log-line.warn { color: #fbbf24; }
+    .log-line.info { color: #60a5fa; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.015); }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; }
+    .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 28px; width: 400px; max-width: 90vw; }
+    .section { display: none; }
+    .section.active { display: block; }
+    #toast { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+    .toast-item { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 16px; font-size: 13px; min-width: 240px; animation: slideIn 0.2s ease; }
+    .toast-item.success { border-left: 3px solid var(--green); }
+    .toast-item.error { border-left: 3px solid var(--red); }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  </style>
+</head>
+<body>
+
+<!-- Token Modal -->
+<div id="tokenModal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      <span style="font-size:16px;font-weight:600">Caption Pilot Admin</span>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Enter your admin token to continue. Find it in <code style="font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:4px">captionpilot/api/admin_token.txt</code></p>
+    <label>Admin Token</label>
+    <input id="tokenInput" type="password" placeholder="Paste token here…" style="margin-bottom:14px" />
+    <button class="btn btn-primary" style="width:100%" onclick="submitToken()">Connect</button>
+  </div>
+</div>
+
+<!-- Layout -->
+<div style="display:flex;height:100vh;overflow:hidden">
+
+  <!-- Sidebar -->
+  <nav style="width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;gap:2px;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:12px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      <span style="font-size:15px;font-weight:700;letter-spacing:-0.3px">Caption Pilot</span>
+    </div>
+    <div onclick="showSection('dashboard')" class="nav-link active" id="nav-dashboard">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div onclick="showSection('accounts')" class="nav-link" id="nav-accounts">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Accounts
+    </div>
+    <div onclick="showSection('pending')" class="nav-link" id="nav-pending">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+      Approvals
+      <span id="pendingBadge" style="display:none" class="badge badge-yellow" style="margin-left:auto;font-size:11px">0</span>
+    </div>
+    <div onclick="showSection('logs')" class="nav-link" id="nav-logs">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      Logs
+    </div>
+    <div onclick="showSection('cron')" class="nav-link" id="nav-cron">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      Cron
+    </div>
+    <div style="flex:1"></div>
+    <div style="padding:12px;border-top:1px solid var(--border);margin-top:8px">
+      <div style="font-size:11px;color:var(--text3)">localhost:8766</div>
+      <div id="connectionDot" style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:11px;color:var(--text3)">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--text3)" id="connDot"></span>
+        <span id="connStatus">Connecting…</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main style="flex:1;overflow-y:auto;padding:28px 32px;background:var(--bg)">
+
+    <!-- Dashboard -->
+    <div id="section-dashboard" class="section active">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">Dashboard</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">All accounts at a glance</p>
+        </div>
+        <button class="btn btn-ghost" onclick="loadDashboard()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div id="dashboardCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+        <div style="color:var(--text3);font-size:13px;padding:20px">Loading accounts…</div>
+      </div>
+    </div>
+
+    <!-- Accounts list -->
+    <div id="section-accounts" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">Accounts</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">Manage Instagram automation accounts</p>
+        </div>
+      </div>
+      <div id="accountsList" class="card" style="overflow:hidden">
+        <div style="color:var(--text3);font-size:13px;padding:20px">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Account Detail -->
+    <div id="section-account-detail" class="section">
+      <div style="margin-bottom:20px">
+        <button class="btn btn-ghost btn-sm" onclick="showSection('accounts')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Back to Accounts
+        </button>
+      </div>
+      <div id="accountDetailContent">Loading…</div>
+    </div>
+
+    <!-- Pending Approvals -->
+    <div id="section-pending" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">Pending Approvals</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">Photo selections awaiting approval</p>
+        </div>
+        <button class="btn btn-ghost" onclick="loadPending()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div id="pendingContent">Loading…</div>
+    </div>
+
+    <!-- Logs -->
+    <div id="section-logs" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">Logs</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">Live log viewer</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:13px;color:var(--text2);cursor:pointer">
+            <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()" style="width:auto" />
+            Auto-refresh (10s)
+          </label>
+          <select id="logSelect" style="width:200px" onchange="loadLog()">
+            <option value="">Select log…</option>
+          </select>
+          <button class="btn btn-ghost" onclick="loadLog()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="logContent" style="padding:16px;font-family:'SF Mono',Menlo,monospace;font-size:12px;height:600px;overflow-y:auto;background:#0d0d0d;color:var(--text2)">
+          <span style="color:var(--text3)">Select a log file above…</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cron -->
+    <div id="section-cron" class="section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0">Cron Schedule</h1>
+          <p style="font-size:13px;color:var(--text2);margin:4px 0 0">Active crontab entries</p>
+        </div>
+        <button class="btn btn-ghost" onclick="loadCron()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div id="cronContent">Loading…</div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8766';
+let TOKEN = localStorage.getItem('cp_admin_token') || '';
+let autoRefreshTimer = null;
+let currentLogName = '';
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  if (!TOKEN) {
+    document.getElementById('tokenModal').style.display = 'flex';
+    document.getElementById('tokenInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitToken();
+    });
+  } else {
+    await init();
+  }
+});
+
+async function submitToken() {
+  const input = document.getElementById('tokenInput').value.trim();
+  if (!input) return;
+  TOKEN = input;
+  const ok = await testConnection();
+  if (ok) {
+    localStorage.setItem('cp_admin_token', TOKEN);
+    document.getElementById('tokenModal').style.display = 'none';
+    await init();
+  } else {
+    toast('Invalid token or server unreachable', 'error');
+  }
+}
+
+async function init() {
+  await testConnection();
+  await loadDashboard();
+  await loadLogList();
+}
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function api(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+  };
+  if (body !== null) opts.body = JSON.stringify(body);
+  try {
+    const res = await fetch(API_BASE + path, opts);
+    if (res.status === 401 || res.status === 403) {
+      localStorage.removeItem('cp_admin_token');
+      TOKEN = '';
+      document.getElementById('tokenModal').style.display = 'flex';
+      return null;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error('API error:', path, e);
+    return null;
+  }
+}
+
+async function testConnection() {
+  const dot = document.getElementById('connDot');
+  const status = document.getElementById('connStatus');
+  try {
+    const res = await fetch(API_BASE + '/api/health', {
+      headers: { 'Authorization': `Bearer ${TOKEN}` }
+    });
+    if (res.ok) {
+      dot.style.background = 'var(--green)';
+      status.textContent = 'Connected';
+      return true;
+    }
+  } catch(e) {}
+  dot.style.background = 'var(--red)';
+  status.textContent = 'Offline';
+  return false;
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+  document.getElementById(`section-${name}`)?.classList.add('active');
+  document.getElementById(`nav-${name}`)?.classList.add('active');
+
+  if (name === 'dashboard') loadDashboard();
+  else if (name === 'accounts') loadAccountsList();
+  else if (name === 'pending') loadPending();
+  else if (name === 'logs') loadLogList();
+  else if (name === 'cron') loadCron();
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const container = document.getElementById('dashboardCards');
+  container.innerHTML = '<div style="color:var(--text3);font-size:13px">Loading…</div>';
+  const accounts = await api('/api/accounts');
+  if (!accounts) {
+    container.innerHTML = '<div style="color:var(--red);font-size:13px">Failed to load accounts</div>';
+    return;
+  }
+
+  // Update pending badge
+  const totalPending = accounts.reduce((a, b) => a + (b.selection_status === 'pending' ? 1 : 0), 0);
+  const pb = document.getElementById('pendingBadge');
+  if (totalPending > 0) { pb.style.display = 'inline-flex'; pb.textContent = totalPending; }
+  else pb.style.display = 'none';
+
+  container.innerHTML = accounts.map(a => `
+    <div class="card" style="padding:20px;cursor:pointer" onclick="openAccountDetail('${a.name}')">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
+        <div>
+          <div style="font-size:15px;font-weight:600">${esc(a.display_name)}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${esc(a.instagram_handle)}</div>
+        </div>
+        <span class="badge ${a.selection_status === 'pending' ? 'badge-yellow' : a.selection_status === 'approved' ? 'badge-green' : 'badge-gray'}">
+          ${a.selection_status || 'idle'}
+        </span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--surface2);border-radius:8px;padding:10px">
+          <div style="font-size:22px;font-weight:700;color:var(--yellow)">${a.pending_count}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Pending</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:10px">
+          <div style="font-size:22px;font-weight:700;color:var(--green)">${a.posted_count}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Posted</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px">
+        Last post: ${a.last_post_date ? relTime(a.last_post_date) : 'Never'}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();runPipeline('${a.name}', this)">
+          ▶ Run Now
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAccountDetail('${a.name}')">
+          Details →
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function runPipeline(account, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Running…';
+  btn.disabled = true;
+  const res = await api(`/api/accounts/${account}/pipeline/run`, 'POST');
+  btn.innerHTML = orig;
+  btn.disabled = false;
+  if (!res) { toast('Pipeline request failed', 'error'); return; }
+  if (res.ok) {
+    toast(`Pipeline ran: ${res.script} (exit ${res.return_code})`, res.return_code === 0 ? 'success' : 'error');
+    showPipelineOutput(account, res);
+  } else {
+    toast(`Pipeline error: ${res.error}`, 'error');
+  }
+}
+
+function showPipelineOutput(account, res) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-backdrop';
+  modal.innerHTML = `
+    <div class="modal" style="width:600px;max-height:80vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <span style="font-weight:600">Pipeline Output — ${esc(account)}</span>
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('.modal-backdrop').remove()">✕</button>
+      </div>
+      <div style="background:#0d0d0d;border-radius:6px;padding:12px;overflow-y:auto;flex:1;font-family:monospace;font-size:12px;color:var(--text2)">
+        ${(res.output || []).map(l => `<div class="log-line ${classifyLine(l)}">${esc(l)}</div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// ─── Accounts List ────────────────────────────────────────────────────────────
+async function loadAccountsList() {
+  const container = document.getElementById('accountsList');
+  const accounts = await api('/api/accounts');
+  if (!accounts) { container.innerHTML = '<div style="padding:20px;color:var(--red);font-size:13px">Failed to load</div>'; return; }
+  if (!accounts.length) { container.innerHTML = '<div style="padding:20px;color:var(--text3);font-size:13px">No accounts found in account_configs/</div>'; return; }
+
+  container.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Account</th><th>Handle</th><th>Niche</th><th>Pending</th><th>Posted</th><th>Last Post</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${accounts.map(a => `
+          <tr style="cursor:pointer" onclick="openAccountDetail('${a.name}')">
+            <td style="font-weight:500">${esc(a.display_name)}</td>
+            <td style="color:var(--text3)">${esc(a.instagram_handle)}</td>
+            <td style="color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.niche || '')}</td>
+            <td><span class="badge ${a.pending_count > 0 ? 'badge-yellow' : 'badge-gray'}">${a.pending_count}</span></td>
+            <td><span class="badge badge-green">${a.posted_count}</span></td>
+            <td style="color:var(--text3)">${a.last_post_date ? relTime(a.last_post_date) : '—'}</td>
+            <td style="text-align:right">
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAccountDetail('${a.name}')">Open →</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ─── Account Detail ───────────────────────────────────────────────────────────
+async function openAccountDetail(account) {
+  showSection('account-detail');
+  document.getElementById('accountDetailContent').innerHTML = '<div style="color:var(--text3);font-size:13px">Loading…</div>';
+  const [config, stateData, posts, enhancement] = await Promise.all([
+    api(`/api/accounts/${account}`),
+    api(`/api/accounts/${account}/state`),
+    api(`/api/accounts/${account}/posts`),
+    api(`/api/accounts/${account}/enhancement`),
+  ]);
+
+  const state = stateData?.data || {};
+  const files = state.files || {};
+
+  document.getElementById('accountDetailContent').innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <h1 style="font-size:22px;font-weight:700;margin:0">${esc(config?.display_name || account)}</h1>
+        <div style="font-size:13px;color:var(--text3);margin-top:4px">${esc(config?.instagram_handle || '')} · ${esc(config?.niche || '')}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="syncFeed('${account}', this)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9A9 9 0 0121 15M20.5 15A9 9 0 013 9"/></svg>
+          Sync Feed
+        </button>
+        <button class="btn btn-primary" onclick="runPipelineFromDetail('${account}', this)">
+          ▶ Run Pipeline
+        </button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:4px;margin-bottom:20px" id="detailTabs">
+      <button class="tab-btn active" onclick="switchDetailTab('config', '${account}', ${JSON.stringify(config).replace(/"/g, '&quot;')}, ${JSON.stringify(files).replace(/"/g, '&quot;')}, ${JSON.stringify(posts).replace(/"/g, '&quot;')}, ${JSON.stringify(enhancement || {}).replace(/"/g, '&quot;')})">Config</button>
+      <button class="tab-btn" onclick="switchDetailTab('media', '${account}', ${JSON.stringify(config).replace(/"/g, '&quot;')}, ${JSON.stringify(files).replace(/"/g, '&quot;')}, ${JSON.stringify(posts).replace(/"/g, '&quot;')}, ${JSON.stringify(enhancement || {}).replace(/"/g, '&quot;')})">Media (${Object.keys(files).length})</button>
+      <button class="tab-btn" onclick="switchDetailTab('posts', '${account}', ${JSON.stringify(config).replace(/"/g, '&quot;')}, ${JSON.stringify(files).replace(/"/g, '&quot;')}, ${JSON.stringify(posts).replace(/"/g, '&quot;')}, ${JSON.stringify(enhancement || {}).replace(/"/g, '&quot;')})">Posts</button>
+      <button class="tab-btn" onclick="switchDetailTab('tuner', '${account}', ${JSON.stringify(config).replace(/"/g, '&quot;')}, ${JSON.stringify(files).replace(/"/g, '&quot;')}, ${JSON.stringify(posts).replace(/"/g, '&quot;')}, ${JSON.stringify(enhancement || {}).replace(/"/g, '&quot;')})">Tuner</button>
+    </div>
+    <div id="detailTabContent">${renderConfigTab(account, config || {})}</div>
+  `;
+}
+
+function switchDetailTab(tab, account, config, files, posts, enhancement) {
+  document.querySelectorAll('#detailTabs .tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['config','media','posts','tuner'][i] === tab);
+  });
+  const el = document.getElementById('detailTabContent');
+  if (tab === 'config') el.innerHTML = renderConfigTab(account, config);
+  else if (tab === 'media') el.innerHTML = renderMediaTab(account, files);
+  else if (tab === 'posts') el.innerHTML = renderPostsTab(posts);
+  else if (tab === 'tuner') el.innerHTML = renderTunerTab(enhancement);
+}
+
+function renderConfigTab(account, config) {
+  const fields = [
+    { key: 'display_name', label: 'Display Name', type: 'text' },
+    { key: 'instagram_handle', label: 'Instagram Handle', type: 'text' },
+    { key: 'brand_voice', label: 'Brand Voice', type: 'textarea' },
+    { key: 'niche', label: 'Niche', type: 'text' },
+    { key: 'location', label: 'Location', type: 'text' },
+    { key: 'music_genre', label: 'Music Genre', type: 'text' },
+    { key: 'checkin_delivery', label: 'Checkin Delivery', type: 'text' },
+  ];
+  return `
+    <div class="card" style="padding:24px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" id="configFields">
+        ${fields.map(f => `
+          <div style="${f.type==='textarea' ? 'grid-column:1/-1' : ''}">
+            <label>${esc(f.label)}</label>
+            ${f.type === 'textarea'
+              ? `<textarea id="cf_${f.key}">${esc(String(config[f.key] || ''))}</textarea>`
+              : `<input type="text" id="cf_${f.key}" value="${esc(String(config[f.key] || ''))}" />`}
+          </div>
+        `).join('')}
+      </div>
+      <hr class="divider" />
+      <div style="margin-bottom:16px">
+        <label>Hashtags (JSON)</label>
+        <textarea id="cf_hashtags" style="min-height:120px;font-family:monospace;font-size:12px">${esc(JSON.stringify(config.captions?.hashtags || {}, null, 2))}</textarea>
+      </div>
+      <div style="margin-bottom:16px">
+        <label>CTAs (JSON array)</label>
+        <textarea id="cf_ctas" style="min-height:80px;font-family:monospace;font-size:12px">${esc(JSON.stringify(config.captions?.ctas || [], null, 2))}</textarea>
+      </div>
+      <div style="margin-bottom:16px">
+        <label>Post Timing (JSON)</label>
+        <textarea id="cf_timing" style="min-height:80px;font-family:monospace;font-size:12px">${esc(JSON.stringify(config.post_timing || {}, null, 2))}</textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="btn btn-ghost" onclick="openAccountDetail('${account}')">Reset</button>
+        <button class="btn btn-primary" onclick="saveConfig('${account}', ${JSON.stringify(config).replace(/"/g, '&quot;')}, this)">Save Changes</button>
+      </div>
+    </div>`;
+}
+
+async function saveConfig(account, originalConfig, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+
+  const updated = { ...originalConfig };
+  const simpleFields = ['display_name','instagram_handle','brand_voice','niche','location','music_genre','checkin_delivery'];
+  simpleFields.forEach(k => {
+    const el = document.getElementById(`cf_${k}`);
+    if (el) updated[k] = el.value;
+  });
+  try {
+    updated.captions = updated.captions || {};
+    const hEl = document.getElementById('cf_hashtags');
+    if (hEl) updated.captions.hashtags = JSON.parse(hEl.value);
+    const cEl = document.getElementById('cf_ctas');
+    if (cEl) updated.captions.ctas = JSON.parse(cEl.value);
+    const tEl = document.getElementById('cf_timing');
+    if (tEl) updated.post_timing = JSON.parse(tEl.value);
+  } catch (e) {
+    toast('JSON parse error: ' + e.message, 'error');
+    btn.innerHTML = orig; btn.disabled = false;
+    return;
+  }
+  const res = await api(`/api/accounts/${account}`, 'PUT', updated);
+  btn.innerHTML = orig; btn.disabled = false;
+  if (res?.ok) toast('Config saved', 'success');
+  else toast('Save failed', 'error');
+}
+
+function renderMediaTab(account, files) {
+  const entries = Object.entries(files).sort((a, b) => {
+    const order = { pending: 0, skipped: 1, posted: 2 };
+    return (order[a[1].status] ?? 1) - (order[b[1].status] ?? 1);
+  });
+  if (!entries.length) return '<div class="card" style="padding:24px;color:var(--text3);font-size:13px">No media tracked yet.</div>';
+  return `
+    <div class="card" style="overflow:hidden">
+      <table>
+        <thead><tr><th>File</th><th>Status</th><th>First Seen</th><th>Posted At</th><th>Method</th><th>pHash</th><th>Override</th></tr></thead>
+        <tbody>
+          ${entries.map(([fname, fdata]) => `
+            <tr>
+              <td style="font-family:monospace;font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(fname)}">${esc(fname)}</td>
+              <td><span class="badge ${statusBadge(fdata.status)}">${esc(fdata.status || '?')}</span></td>
+              <td style="color:var(--text3);font-size:12px">${fdata.first_seen ? shortDate(fdata.first_seen) : '—'}</td>
+              <td style="color:var(--text3);font-size:12px">${fdata.posted_at ? shortDate(fdata.posted_at) : '—'}</td>
+              <td style="color:var(--text3);font-size:12px">${esc(fdata.post_method || '—')}</td>
+              <td style="font-family:monospace;font-size:10px;color:var(--text3)">${fdata.phash ? fdata.phash.substring(0,8)+'…' : '—'}</td>
+              <td>
+                <div style="display:flex;gap:4px">
+                  ${['posted','pending','skipped'].filter(s => s !== fdata.status).map(s => `
+                    <button class="btn btn-ghost btn-sm" onclick="setFileStatus('${account}', '${esc(fname)}', '${s}', this)">${s}</button>
+                  `).join('')}
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function setFileStatus(account, filename, status, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  const res = await api(`/api/accounts/${account}/state/${encodeURIComponent(filename)}`, 'PUT', { status });
+  if (res?.ok) {
+    toast(`${filename.substring(0,20)}… → ${status}`, 'success');
+    openAccountDetail(account);
+  } else {
+    toast('Update failed', 'error');
+    btn.innerHTML = orig; btn.disabled = false;
+  }
+}
+
+function renderPostsTab(posts) {
+  if (!posts) return '<div class="card" style="padding:24px;color:var(--text3)">No post data.</div>';
+  const { posts: postList = [], batches = [] } = posts;
+  return `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      ${batches.length ? `
+        <div>
+          <h3 style="font-size:14px;font-weight:600;margin:0 0 12px">Posted Batches</h3>
+          <div class="card" style="overflow:hidden">
+            <table>
+              <thead><tr><th>Date</th><th>Type</th><th>Files</th><th>Caption</th><th>URL</th></tr></thead>
+              <tbody>
+                ${batches.map(b => `
+                  <tr>
+                    <td style="color:var(--text3);font-size:12px;white-space:nowrap">${b.ts ? shortDate(typeof b.ts === 'number' ? new Date(b.ts * 1000).toISOString() : b.ts) : '—'}</td>
+                    <td><span class="badge badge-blue">${esc(b.post_type || 'carousel')}</span></td>
+                    <td style="color:var(--text3);font-size:12px">${b.count || (b.files?.length) || '?'} file(s)</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(b.note || b.caption || '—')}</td>
+                    <td>${b.url ? `<a href="${esc(b.url)}" target="_blank" style="color:var(--accent);font-size:12px">Open →</a>` : '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+      ${postList.length ? `
+        <div>
+          <h3 style="font-size:14px;font-weight:600;margin:0 0 12px">Individual Files (State v2)</h3>
+          <div class="card" style="overflow:hidden">
+            <table>
+              <thead><tr><th>File</th><th>Posted At</th><th>Method</th><th>URL</th></tr></thead>
+              <tbody>
+                ${postList.map(p => `
+                  <tr>
+                    <td style="font-family:monospace;font-size:11px">${esc(p.file)}</td>
+                    <td style="color:var(--text3);font-size:12px">${p.posted_at ? shortDate(p.posted_at) : '—'}</td>
+                    <td style="color:var(--text3);font-size:12px">${esc(p.post_method || '—')}</td>
+                    <td>${p.post_url ? `<a href="${esc(p.post_url)}" target="_blank" style="color:var(--accent);font-size:12px">Open →</a>` : '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+      ${!batches.length && !postList.length ? '<div class="card" style="padding:24px;color:var(--text3);font-size:13px">No post history found.</div>' : ''}
+    </div>`;
+}
+
+function renderTunerTab(enhancement) {
+  if (!enhancement || !Object.keys(enhancement).length) {
+    return '<div class="card" style="padding:24px;color:var(--text3);font-size:13px">No enhancement tuner state found for this account.</div>';
+  }
+  return `
+    <div class="card" style="padding:24px">
+      <pre style="font-size:12px;color:var(--text2);overflow-x:auto;margin:0">${esc(JSON.stringify(enhancement, null, 2))}</pre>
+    </div>`;
+}
+
+async function syncFeed(account, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Syncing…';
+  btn.disabled = true;
+  const res = await api(`/api/feed/sync/${account}`);
+  btn.innerHTML = orig; btn.disabled = false;
+  if (res?.ok) toast('Feed sync complete', 'success');
+  else toast('Feed sync failed: ' + (res?.error || 'unknown'), 'error');
+}
+
+async function runPipelineFromDetail(account, btn) {
+  await runPipeline(account, btn);
+}
+
+// ─── Pending Approvals ────────────────────────────────────────────────────────
+async function loadPending() {
+  const container = document.getElementById('pendingContent');
+  container.innerHTML = '<div style="color:var(--text3);font-size:13px">Loading…</div>';
+  const data = await api('/api/pending/selections');
+  if (!data || !Object.keys(data).length) {
+    container.innerHTML = '<div class="card" style="padding:24px;color:var(--text3);font-size:13px">No pending selections found.</div>';
+    return;
+  }
+
+  container.innerHTML = Object.entries(data).map(([account, sel]) => {
+    const scores = sel.scores || [];
+    const selected = sel.selected || [];
+    const status = sel.status || 'pending';
+    return `
+      <div class="card" style="padding:24px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <h3 style="font-size:16px;font-weight:600;margin:0">${esc(account)}</h3>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">
+              ${scores.length} photos scored · ${selected.length} selected · updated ${sel.ts ? relTime(sel.ts) : '?'}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge ${status === 'approved' ? 'badge-green' : status === 'pending' ? 'badge-yellow' : 'badge-gray'}">${esc(status)}</span>
+            ${status !== 'approved' ? `
+              <button class="btn btn-green" onclick="approveSelection('${account}', this)">
+                ✓ Approve & Post
+              </button>
+            ` : ''}
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th>#</th><th>File</th><th>Score</th><th>Sharp</th><th>Exposure</th><th>Contrast</th><th>Interest</th><th>Action</th>
+            </tr></thead>
+            <tbody>
+              ${scores.map((s, i) => `
+                <tr style="${selected.includes(i) ? 'background:rgba(59,130,246,0.06)' : ''}">
+                  <td>${i + 1}</td>
+                  <td style="font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.name || s.path?.split('/').pop() || '?')}</td>
+                  <td style="font-weight:600;color:${s.score >= 40 ? 'var(--green)' : s.score >= 35 ? 'var(--yellow)' : 'var(--text3)'}">${s.score?.toFixed(1) ?? '?'}</td>
+                  <td style="color:var(--text3)">${s.sharpness?.toFixed(1) ?? '?'}</td>
+                  <td style="color:var(--text3)">${s.exposure?.toFixed(1) ?? '?'}</td>
+                  <td style="color:var(--text3)">${s.contrast?.toFixed(1) ?? '?'}</td>
+                  <td style="color:var(--text3)">${s.interest?.toFixed(1) ?? '?'}</td>
+                  <td>
+                    ${selected.includes(i)
+                      ? `<span class="badge badge-blue" style="margin-right:6px">✓ selected</span>
+                         <button class="btn btn-ghost btn-sm" onclick="selAction('${account}','remove',${i},this)">Remove</button>`
+                      : `<button class="btn btn-ghost btn-sm" onclick="selAction('${account}','add',${i},this)">Add</button>
+                         <button class="btn btn-ghost btn-sm" onclick="selAction('${account}','swap',${i},this)">Swap In</button>`}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function selAction(account, action, photoNum, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  const res = await api(`/api/pending/selections/${account}`, 'POST', { action, photo_num: photoNum });
+  if (res?.ok) { toast(`${action} applied`, 'success'); loadPending(); }
+  else { toast('Action failed', 'error'); btn.innerHTML = orig; btn.disabled = false; }
+}
+
+async function approveSelection(account, btn) {
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Approving…';
+  btn.disabled = true;
+  const res = await api(`/api/pending/selections/${account}`, 'POST', { action: 'post' });
+  if (res?.ok) { toast(`${account} selection approved`, 'success'); loadPending(); }
+  else { toast('Approval failed', 'error'); btn.innerHTML = orig; btn.disabled = false; }
+}
+
+// ─── Logs ─────────────────────────────────────────────────────────────────────
+async function loadLogList() {
+  const select = document.getElementById('logSelect');
+  const logs = await api('/api/logs');
+  if (!logs) return;
+  select.innerHTML = '<option value="">Select log…</option>' +
+    logs.map(l => `<option value="${esc(l)}">${esc(l)}.log</option>`).join('');
+}
+
+async function loadLog() {
+  const name = document.getElementById('logSelect').value;
+  if (!name) return;
+  currentLogName = name;
+  const data = await api(`/api/logs/${name}?n=200`);
+  const container = document.getElementById('logContent');
+  if (!data) { container.innerHTML = '<span style="color:var(--red)">Failed to load log</span>'; return; }
+  if (!data.lines.length) { container.innerHTML = '<span style="color:var(--text3)">Empty log file</span>'; return; }
+  container.innerHTML = data.lines.map(l =>
+    `<div class="log-line ${classifyLine(l)}">${esc(l)}</div>`
+  ).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function toggleAutoRefresh() {
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+  if (document.getElementById('autoRefreshToggle').checked) {
+    autoRefreshTimer = setInterval(() => { if (currentLogName) loadLog(); }, 10000);
+  }
+}
+
+// ─── Cron ─────────────────────────────────────────────────────────────────────
+async function loadCron() {
+  const container = document.getElementById('cronContent');
+  const data = await api('/api/cron');
+  if (!data) { container.innerHTML = '<div class="card" style="padding:24px;color:var(--red);font-size:13px">Failed to read crontab</div>'; return; }
+
+  const lines = data.lines || [];
+  const entries = lines.filter(l => l.trim() && !l.trim().startsWith('#'));
+  const comments = lines.filter(l => l.trim().startsWith('#'));
+
+  container.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card" style="overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text3)">
+          ACTIVE ENTRIES (${entries.length})
+        </div>
+        ${entries.length ? entries.map(l => `
+          <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:16px;align-items:baseline">
+            <code style="font-size:12px;color:var(--accent);min-width:160px;flex-shrink:0">${esc(parseCronSchedule(l))}</code>
+            <code style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(parseCronCommand(l))}</code>
+          </div>
+        `).join('') : '<div style="padding:16px;color:var(--text3);font-size:13px">No cron entries found</div>'}
+      </div>
+      <div class="card" style="padding:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:10px">RAW CRONTAB</div>
+        <pre style="font-size:11px;color:var(--text2);margin:0;overflow-x:auto;font-family:monospace">${esc(data.raw || '')}</pre>
+      </div>
+    </div>`;
+}
+
+function parseCronSchedule(line) {
+  const parts = line.trim().split(/\s+/);
+  if (parts.length < 5) return line;
+  return parts.slice(0, 5).join(' ');
+}
+
+function parseCronCommand(line) {
+  const parts = line.trim().split(/\s+/);
+  if (parts.length < 5) return line;
+  return parts.slice(5).join(' ');
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function relTime(ts) {
+  try {
+    const d = new Date(ts);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
+    return d.toLocaleDateString();
+  } catch { return ts; }
+}
+
+function shortDate(ts) {
+  try {
+    return new Date(ts).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  } catch { return ts; }
+}
+
+function statusBadge(status) {
+  return { posted: 'badge-green', pending: 'badge-yellow', skipped: 'badge-gray', failed: 'badge-red' }[status] || 'badge-gray';
+}
+
+function classifyLine(line) {
+  const l = line.toLowerCase();
+  if (l.includes('error') || l.includes('exception') || l.includes('traceback') || l.includes('failed')) return 'error';
+  if (l.includes('warn') || l.includes('warning')) return 'warn';
+  if (l.includes('info') || l.includes('starting') || l.includes('success') || l.includes('posted')) return 'info';
+  return '';
+}
+
+let toastId = 0;
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.innerHTML = `${type === 'success' ? '✓' : '✕'} ${esc(msg)}`;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+</script>
+</body>
+</html>
