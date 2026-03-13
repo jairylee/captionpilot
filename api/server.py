@@ -1162,6 +1162,9 @@ async def confirm_video_approval(token: str, request: Request):
     if user_caption:
         meta["caption"] = user_caption
 
+    # Optional scheduled_time (ISO string) — if provided, defer posting until that time
+    scheduled_time = body.get("scheduled_time", "").strip() if body.get("scheduled_time") else ""
+
     # Mark token used
     meta["used"] = True
     meta["used_at"] = utcnow()
@@ -1186,9 +1189,12 @@ async def confirm_video_approval(token: str, request: Request):
         qdata["decided_at"] = utcnow()
         if user_caption:
             qdata["caption"] = user_caption
+        if scheduled_time:
+            qdata["scheduled_time"] = scheduled_time
         write_json(video_queue_file, qdata)
 
     # Trigger video_decision_watcher to pick up the decision
+    # (watcher will skip if scheduled_time is in the future; cron will retry)
     script_path = SCRIPTS_DIR / "video_decision_watcher.py"
     cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
     try:
@@ -1204,7 +1210,10 @@ async def confirm_video_approval(token: str, request: Request):
     except Exception as e:
         print(f"[video] Warning: could not trigger watcher: {e}")
 
-    msg = "Publishing as a Reel!" if action == "reel" else "Publishing as a Feed video!"
+    if scheduled_time:
+        msg = f"Scheduled! Will post at {scheduled_time}."
+    else:
+        msg = "Publishing as a Reel!" if action == "reel" else "Publishing as a Feed video!"
     return {"ok": True, "message": msg}
 
 

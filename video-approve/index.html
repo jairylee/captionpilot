@@ -322,6 +322,66 @@
       width: 100%;
     }
 
+    /* ── Schedule panel ── */
+    .schedule-toggle-link {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 10px 0;
+      text-decoration: underline;
+      font-family: 'DM Sans', sans-serif;
+      width: 100%;
+      text-align: center;
+      min-height: 44px;
+    }
+    .schedule-toggle-link:hover { color: var(--accent-hover); }
+
+    .schedule-panel {
+      display: none;
+      border: 1.5px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 16px;
+      background: #fff;
+    }
+    .schedule-panel.open { display: block; }
+
+    .sched-section-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .sched-section-label + .sched-section-label,
+    .custom-picker-wrap { margin-top: 14px; }
+
+    .rec-card {
+      padding: 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .rec-card:active { transform: scale(0.98); }
+    .rec-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+    .rec-card-label { font-weight: 600; color: var(--text); font-size: 14px; }
+    .rec-card-reason { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    .sched-action-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .sched-action-btns .btn { display: none; }
+    .sched-action-btns.has-time .btn { display: flex; }
+
     /* ── States ── */
     .state-view {
       display: none;
@@ -392,6 +452,18 @@
   </div>
 </div>
 
+<!-- Scheduled success state -->
+<div id="view-scheduled" class="state-view">
+  <div class="page">
+    <header><div class="logo">Caption Pilot</div></header>
+    <div class="message-card">
+      <div class="emoji">📅</div>
+      <h2>Scheduled!</h2>
+      <p id="scheduled-msg">Your video will be posted at the selected time.</p>
+    </div>
+  </div>
+</div>
+
 <!-- Success states -->
 <div id="view-success" class="state-view">
   <div class="page">
@@ -457,6 +529,33 @@
       <button class="btn btn-ghost" id="btn-skip" onclick="requestDecision('skip')">
         Skip this video
       </button>
+      <button class="schedule-toggle-link" id="btn-toggle-sched" onclick="toggleScheduleOptions()">
+        Schedule instead of posting now →
+      </button>
+    </div>
+
+    <!-- Schedule panel -->
+    <div class="schedule-panel" id="schedule-panel">
+      <p class="sched-section-label">AI-recommended times:</p>
+      <div id="recommendations-list">
+        <div style="color:var(--muted);font-size:13px;padding:8px 0">Loading recommendations…</div>
+      </div>
+      <div class="custom-picker-wrap">
+        <p class="sched-section-label">Or pick a custom time:</p>
+        <input type="datetime-local" id="custom-time"
+          style="width:100%;padding:12px;background:#fff;color:var(--text);border:1.5px solid var(--border);border-radius:12px;font-size:16px;font-family:'DM Sans',sans-serif"
+          onchange="onCustomTimeChange()">
+      </div>
+      <div class="sched-action-btns" id="sched-action-btns">
+        <button class="btn btn-primary" id="btn-sched-reel" onclick="scheduleAs('reel')">
+          Schedule as Reel ⭐
+          <span class="btn-hint">Best reach · new audiences</span>
+        </button>
+        <button class="btn btn-outline" id="btn-sched-feed" onclick="scheduleAs('feed')">
+          Schedule as Feed Video
+          <span class="btn-hint">Stays on your grid</span>
+        </button>
+      </div>
     </div>
 
     <p class="explainer">
@@ -482,8 +581,11 @@
   const API_BASE   = 'https://api.captionpilot.app';
   const CAPTION_LIMIT = 2200;
 
-  let TOKEN        = null;
+  let TOKEN         = null;
   let pendingAction = null;   // "reel" | "feed" | "skip" — waiting for modal confirm
+  let selectedSchedTime  = null;   // ISO string of chosen schedule time
+  let schedOptsLoaded    = false;  // whether recommendations have been fetched
+  let DATA           = {};         // account data (for recommendations)
 
   function showView(id) {
     document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
@@ -606,8 +708,14 @@
   }
 
   // ── Execute the confirmed decision ────────────────────────────────────────
-  async function executeDecision() {
-    const action = pendingAction;
+  // action: "reel" | "feed" | "skip"
+  // scheduledTime: ISO string (optional) — if provided, schedules instead of posting now
+  async function executeDecision(action, scheduledTime) {
+    // If called from modal (no args), use pendingAction
+    if (!action) {
+      action = pendingAction;
+      scheduledTime = null;
+    }
     if (!action) return;
     closeModal();
 
@@ -618,24 +726,29 @@
       ? document.getElementById('caption-textarea').value.trim()
       : document.getElementById('caption-display').textContent.trim();
 
-    // Disable all buttons
-    ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
-      document.getElementById(id).disabled = true;
+    // Disable all action buttons
+    ['btn-reel', 'btn-feed', 'btn-skip', 'btn-sched-reel', 'btn-sched-feed'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = true;
     });
     showError('');
 
     try {
+      const payload = { action, caption };
+      if (scheduledTime) payload.scheduled_time = scheduledTime;
+
       const res = await fetch(`${API_BASE}/api/video-approve/${TOKEN}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, caption }),
+        body: JSON.stringify(payload),
       });
 
       if (res.status === 410) { showView('view-410'); return; }
 
       if (!res.ok) {
-        ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
-          document.getElementById(id).disabled = false;
+        ['btn-reel', 'btn-feed', 'btn-skip', 'btn-sched-reel', 'btn-sched-feed'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.disabled = false;
         });
         showError('Something went wrong. Please try again.');
         return;
@@ -645,6 +758,23 @@
       const handle = document.getElementById('instagram-handle').textContent || '';
       const acctSuffix = handle ? ` — ${handle}` : '';
 
+      // Scheduled path
+      if (scheduledTime) {
+        try {
+          const dt = new Date(scheduledTime);
+          const label = dt.toLocaleString('en-US', {
+            weekday: 'long', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', hour12: true
+          });
+          const typeLabel = action === 'reel' ? 'Reel' : 'Feed Video';
+          document.getElementById('scheduled-msg').textContent =
+            `Your ${typeLabel} is scheduled for ${label}${acctSuffix}.`;
+        } catch(e) { /* use default message */ }
+        showView('view-scheduled');
+        return;
+      }
+
+      // Immediate post path
       if (action === 'reel') {
         document.getElementById('success-emoji').textContent = '🎬';
         document.getElementById('success-title').textContent = 'Published as a Reel!';
@@ -661,11 +791,104 @@
       showView('view-success');
 
     } catch (err) {
-      ['btn-reel', 'btn-feed', 'btn-skip'].forEach(id => {
-        document.getElementById(id).disabled = false;
+      ['btn-reel', 'btn-feed', 'btn-skip', 'btn-sched-reel', 'btn-sched-feed'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = false;
       });
       showError("Can't reach the server. Check your connection and try again.");
     }
+  }
+
+  // ── Schedule panel ────────────────────────────────────────────────────────
+  async function toggleScheduleOptions() {
+    const panel = document.getElementById('schedule-panel');
+    const btn   = document.getElementById('btn-toggle-sched');
+    const isOpen = panel.classList.toggle('open');
+    btn.textContent = isOpen ? 'Hide scheduling options ↑' : 'Schedule instead of posting now →';
+
+    if (isOpen && !schedOptsLoaded) {
+      schedOptsLoaded = true;
+      await loadRecommendations();
+    }
+  }
+
+  async function loadRecommendations() {
+    const list = document.getElementById('recommendations-list');
+    const account = DATA && DATA.account;
+    if (!account) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:13px">Account info unavailable.</div>';
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/schedule/recommendations/${account}?t=${TOKEN}`);
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      renderRecommendations(data.recommendations || []);
+    } catch(e) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:13px">Could not load recommendations. Use the custom picker below.</div>';
+    }
+  }
+
+  function renderRecommendations(recs) {
+    const list = document.getElementById('recommendations-list');
+    list.innerHTML = '';
+    if (!recs.length) {
+      list.innerHTML = '<div style="color:var(--muted);font-size:13px">No recommendations available. Use the custom picker below.</div>';
+      return;
+    }
+    recs.forEach(rec => {
+      const card = document.createElement('div');
+      card.className = 'rec-card';
+      card.innerHTML = `
+        <div class="rec-card-label">${rec.label}</div>
+        <div class="rec-card-reason">${rec.reason}</div>
+      `;
+      card.addEventListener('click', () => selectRec(card, rec.iso));
+      list.appendChild(card);
+    });
+  }
+
+  function selectRec(el, iso) {
+    document.querySelectorAll('.rec-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSchedTime = iso;
+    document.getElementById('custom-time').value = '';
+    updateSchedActionBtns();
+  }
+
+  function onCustomTimeChange() {
+    const val = document.getElementById('custom-time').value;
+    if (!val) return;
+    document.querySelectorAll('.rec-card').forEach(c => c.classList.remove('selected'));
+    const dt = new Date(val);
+    selectedSchedTime = dt.toISOString();
+    updateSchedActionBtns();
+  }
+
+  function updateSchedActionBtns() {
+    const wrap = document.getElementById('sched-action-btns');
+    if (selectedSchedTime) {
+      wrap.classList.add('has-time');
+      // Update button labels with the chosen time
+      try {
+        const dt = new Date(selectedSchedTime);
+        const label = dt.toLocaleString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric',
+          hour: 'numeric', minute: '2-digit', hour12: true
+        });
+        document.getElementById('btn-sched-reel').innerHTML =
+          `Schedule as Reel ⭐ <span class="btn-hint">${label}</span>`;
+        document.getElementById('btn-sched-feed').innerHTML =
+          `Schedule as Feed Video <span class="btn-hint">${label}</span>`;
+      } catch(e) { /* keep default labels */ }
+    } else {
+      wrap.classList.remove('has-time');
+    }
+  }
+
+  function scheduleAs(action) {
+    if (!selectedSchedTime) return;
+    executeDecision(action, selectedSchedTime);
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -683,6 +906,7 @@
       if (!res.ok) { showView('view-404'); return; }
 
       const data = await res.json();
+      DATA = data;  // store for scheduling recommendations
 
       document.getElementById('display-name').textContent      = data.display_name || '';
       document.getElementById('instagram-handle').textContent  = data.instagram_handle || '';
