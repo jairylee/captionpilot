@@ -1,6 +1,7 @@
 {
-  "rewrites": [
-    { "source": "/approve", "destination": "/approve/index.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/approve", "dest": "/approve/index.html" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
