@@ -406,7 +406,12 @@ def generate_approval_token(account: str, auth=Depends(verify_token)):
     }
     _save_tokens(tokens)
     url = f"https://captionpilot.app/approve?t={token}"
-    return {"token": token, "url": url, "account": account}
+
+    # Include scheduled_time from account config (default "6:00 PM CDT")
+    cfg = read_json(ACCOUNT_CONFIGS_DIR / f"{account}.json")
+    scheduled_time = cfg.get("post_time", "6:00 PM CDT")
+
+    return {"token": token, "url": url, "account": account, "scheduled_time": scheduled_time}
 
 @app.get("/api/approve/{token}")
 def get_approval(token: str):
@@ -498,10 +503,34 @@ async def confirm_approval(token: str, request: Request):
 
     acct_state = sel_state[account]
 
-    if action == "post":
+    if action == "schedule":
+        # Save selection state, mark scheduled — do NOT spawn instagram_post.py
+        if selected is not None:
+            acct_state["selected"] = selected
+        hero_index = body.get("hero_index")
+        if hero_index is not None:
+            acct_state["hero_index"] = hero_index
+        acct_state["status"] = "scheduled"
+        acct_state["approved_at"] = utcnow()
+        acct_state["approved_via"] = "web"
+        sel_state[account] = acct_state
+        write_json(sel_path, sel_state)
+
+        # Mark token used
+        meta["used"] = True
+        meta["used_at"] = utcnow()
+        tokens[token] = meta
+        _save_tokens(tokens)
+
+        return {"ok": True, "message": "Scheduled for 6 PM."}
+
+    elif action == "post":
         # Accept whatever selected list the page sends
         if selected is not None:
             acct_state["selected"] = selected
+        hero_index = body.get("hero_index")
+        if hero_index is not None:
+            acct_state["hero_index"] = hero_index
         acct_state["status"] = "approved"
         acct_state["approved_at"] = utcnow()
         acct_state["approved_via"] = "web"

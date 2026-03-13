@@ -4,54 +4,61 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Caption Pilot — Approve Photos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --accent: #FF6B35;
-      --bg: #0f0f0f;
-      --card-bg: #1a1a1a;
-      --text: #f0f0f0;
-      --muted: #888;
-      --border: #2a2a2a;
-      --selected-border: #FF6B35;
-      --dim: rgba(0,0,0,0.55);
+      --bg:           #faf8f5;
+      --white:        #ffffff;
+      --warm:         #f2ede6;
+      --border:       #e4ddd5;
+      --text:         #1a1714;
+      --muted:        #7a6f66;
+      --light:        #a89e96;
+      --accent:       #5c7e6c;
+      --accent-light: #e8f0eb;
+      --accent-mid:   #c4d9cb;
+      --dim:          rgba(0,0,0,0.40);
+      --radius-btn:   100px;
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'DM Sans', system-ui, sans-serif;
       min-height: 100dvh;
-      padding-bottom: 90px;
+      padding-bottom: 100px;
     }
 
     /* ─── Header ─────────────────────────────── */
     .header {
-      padding: 20px 16px 14px;
+      background: var(--warm);
       border-bottom: 1px solid var(--border);
-      background: var(--bg);
+      padding: 18px 20px 16px;
       position: sticky;
       top: 0;
       z-index: 10;
     }
     .header-logo {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 6px;
-    }
-    .header-name {
+      font-family: 'Playfair Display', serif;
       font-size: 20px;
       font-weight: 700;
-      line-height: 1.2;
+      color: var(--accent);
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 6px;
     }
-    .header-handle {
+    .header-identity {
       font-size: 14px;
       color: var(--muted);
-      margin-top: 2px;
+      font-weight: 400;
+    }
+    .header-identity strong {
+      color: var(--text);
+      font-weight: 600;
     }
 
     /* ─── States ─────────────────────────────── */
@@ -60,149 +67,194 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 60dvh;
-      padding: 32px 24px;
+      min-height: 70dvh;
+      padding: 40px 28px;
       text-align: center;
     }
-    .state-icon { font-size: 52px; margin-bottom: 16px; }
-    .state-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    .state-subtitle { font-size: 15px; color: var(--muted); line-height: 1.5; }
+    .state-icon  { font-size: 52px; margin-bottom: 18px; }
+    .state-title { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+    .state-sub   { font-size: 15px; color: var(--muted); line-height: 1.6; max-width: 300px; }
+
     .spinner {
-      width: 36px; height: 36px;
-      border: 3px solid var(--border);
+      width: 38px; height: 38px;
+      border: 3px solid var(--accent-mid);
       border-top-color: var(--accent);
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 16px;
+      animation: spin 0.75s linear infinite;
+      margin-bottom: 18px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ─── Content wrapper ────────────────────── */
+    .content-wrap { padding: 20px 14px 12px; }
+
     /* ─── Grid ───────────────────────────────── */
-    .grid-section { padding: 16px 12px 8px; }
-    .grid-label {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 10px;
-    }
     .grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
+      gap: 10px;
+    }
+    @media (min-width: 540px) {
+      .grid { grid-template-columns: repeat(3, 1fr); }
     }
 
     /* ─── Photo card ─────────────────────────── */
     .card {
       position: relative;
       aspect-ratio: 1;
-      border-radius: 10px;
+      border-radius: 12px;
       overflow: hidden;
       cursor: pointer;
       border: 3px solid transparent;
-      transition: border-color 0.15s, transform 0.1s;
-      background: var(--card-bg);
+      transition: border-color 0.15s;
+      background: var(--border);
       -webkit-tap-highlight-color: transparent;
-    }
-    .card.selected {
-      border-color: var(--selected-border);
+      user-select: none;
     }
     .card:active { transform: scale(0.97); }
 
-    .card img {
-      width: 100%;
-      height: 100%;
+    .card img, .card video {
+      width: 100%; height: 100%;
       object-fit: cover;
       display: block;
+      pointer-events: none;
     }
+
+    /* Dim overlay */
     .card-dim {
-      position: absolute;
-      inset: 0;
+      position: absolute; inset: 0;
       background: var(--dim);
       transition: opacity 0.15s;
     }
-    .card.selected .card-dim { opacity: 0; }
+    .card.selected   .card-dim { opacity: 0; }
+    .card.hero       .card-dim { opacity: 0; }
 
-    /* checkmark overlay */
-    .card-check {
+    /* Selected border */
+    .card.selected { border-color: var(--accent); }
+    .card.hero     { border-color: var(--accent); }
+
+    /* Hero badge */
+    .badge-hero {
       position: absolute;
-      top: 8px;
-      left: 8px;
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
+      top: 8px; left: 8px;
       background: var(--accent);
-      display: flex;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-radius: 100px;
+      padding: 3px 9px;
+      display: none;
       align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transform: scale(0.7);
-      transition: opacity 0.15s, transform 0.15s;
+      gap: 4px;
+      line-height: 1.4;
     }
-    .card.selected .card-check {
-      opacity: 1;
-      transform: scale(1);
-    }
-    .card-check svg {
-      width: 14px; height: 14px;
-      stroke: white;
-      stroke-width: 2.5;
-      fill: none;
-    }
+    .card.hero .badge-hero { display: flex; }
 
-    /* score badge */
-    .card-score {
+    /* Score badge */
+    .badge-score {
       position: absolute;
-      bottom: 7px;
-      right: 7px;
-      background: rgba(0,0,0,0.72);
+      bottom: 8px; right: 8px;
+      background: rgba(0,0,0,0.60);
       color: #fff;
       font-size: 11px;
       font-weight: 600;
-      border-radius: 5px;
-      padding: 2px 6px;
+      border-radius: 100px;
+      padding: 3px 8px;
       line-height: 1.4;
+    }
+
+    /* Video play overlay */
+    .badge-play {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .play-icon {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      padding-left: 3px; /* optical center for ▶ */
+    }
+
+    /* ─── Tap hint ────────────────────────────── */
+    .tap-hint {
+      text-align: center;
+      font-size: 12px;
+      color: var(--light);
+      margin-top: 12px;
+      margin-bottom: 4px;
       letter-spacing: 0.02em;
     }
+
+    /* ─── Video note ──────────────────────────── */
+    .video-note {
+      background: var(--accent-light);
+      border: 1px solid var(--accent-mid);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+      margin-top: 12px;
+      display: none;
+    }
+    .video-note.visible { display: block; }
 
     /* ─── Bottom bar ─────────────────────────── */
     .bottom-bar {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(15,15,15,0.95);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      bottom: 0; left: 0; right: 0;
+      background: var(--white);
       border-top: 1px solid var(--border);
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.07);
       padding: 12px 16px max(16px, env(safe-area-inset-bottom));
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       z-index: 20;
     }
     .bottom-count {
       flex: 1;
-      font-size: 15px;
+      font-size: 14px;
       color: var(--muted);
     }
-    .bottom-count strong { color: var(--text); }
-    .btn-post {
-      background: var(--accent);
-      color: #fff;
+    .bottom-count strong { color: var(--text); font-weight: 600; }
+
+    .btn {
       border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
-      font-size: 17px;
-      font-weight: 700;
+      border-radius: var(--radius-btn);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
       cursor: pointer;
-      letter-spacing: 0.01em;
       transition: opacity 0.15s, transform 0.1s;
       -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
     }
-    .btn-post:active { opacity: 0.85; transform: scale(0.97); }
-    .btn-post:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn:active   { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      padding: 12px 20px;
+      font-size: 15px;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
+      padding: 10px 16px;
+      font-size: 13px;
+    }
 
     /* ─── Hidden ─────────────────────────────── */
     [hidden] { display: none !important; }
@@ -210,71 +262,92 @@
 </head>
 <body>
 
-  <!-- Header (filled by JS) -->
-  <div class="header" id="header" hidden>
-    <div class="header-logo">Caption Pilot</div>
-    <div class="header-name" id="header-name">—</div>
-    <div class="header-handle" id="header-handle">—</div>
-  </div>
+  <!-- Header -->
+  <header class="header" id="header" hidden>
+    <a href="https://captionpilot.app" class="header-logo">Caption Pilot</a>
+    <div class="header-identity" id="header-identity">—</div>
+  </header>
 
   <!-- Loading -->
   <div class="state" id="state-loading">
     <div class="spinner"></div>
-    <div class="state-subtitle">Loading your photos…</div>
+    <div class="state-sub">Loading your photos…</div>
   </div>
 
-  <!-- Error states -->
-  <div class="state" id="state-used" hidden>
-    <div class="state-icon">🔒</div>
-    <div class="state-title">Already used</div>
-    <div class="state-subtitle">This approval link has already been used.</div>
-  </div>
+  <!-- Error: 404 -->
   <div class="state" id="state-notfound" hidden>
-    <div class="state-icon">❓</div>
+    <div class="state-icon">🔗</div>
     <div class="state-title">Link not found</div>
-    <div class="state-subtitle">Invalid or expired link. Ask for a new one.</div>
+    <div class="state-sub">This approval link is invalid or expired.</div>
   </div>
+
+  <!-- Error: 410 -->
+  <div class="state" id="state-used" hidden>
+    <div class="state-icon">✅</div>
+    <div class="state-title">Already used</div>
+    <div class="state-sub">This link has already been used. Check Instagram for the post!</div>
+  </div>
+
+  <!-- Error: generic -->
   <div class="state" id="state-error" hidden>
     <div class="state-icon">⚠️</div>
     <div class="state-title">Something went wrong</div>
-    <div class="state-subtitle" id="state-error-msg">Please try again.</div>
+    <div class="state-sub" id="state-error-msg">Please try again.</div>
   </div>
 
-  <!-- Success -->
-  <div class="state" id="state-success" hidden>
+  <!-- Success: scheduled -->
+  <div class="state" id="state-scheduled" hidden>
+    <div class="state-icon">✅</div>
+    <div class="state-title">Scheduled!</div>
+    <div class="state-sub">Your post will go live at 6 PM.</div>
+  </div>
+
+  <!-- Success: post now -->
+  <div class="state" id="state-posted" hidden>
     <div class="state-icon">🚀</div>
-    <div class="state-title">Posting now!</div>
-    <div class="state-subtitle">Check Instagram in a few minutes. Your post is on its way.</div>
+    <div class="state-title">Publishing now!</div>
+    <div class="state-sub">Check Instagram in a few minutes.</div>
   </div>
 
   <!-- Photo grid -->
   <div id="content" hidden>
-    <div class="grid-section">
-      <div class="grid-label" id="grid-label">All photos — tap to select</div>
+    <div class="content-wrap">
       <div class="grid" id="photo-grid"></div>
+      <p class="tap-hint">Tap to select · Tap selected to set as hero</p>
+      <div class="video-note" id="video-note">🎬 Video posts as a Reel</div>
     </div>
   </div>
 
   <!-- Sticky bottom bar -->
   <div class="bottom-bar" id="bottom-bar" hidden>
-    <div class="bottom-count"><strong id="sel-count">0</strong> selected</div>
-    <button class="btn-post" id="btn-post" onclick="postNow()">POST NOW</button>
+    <div class="bottom-count" id="bottom-count"><strong>0</strong> selected</div>
+    <button class="btn btn-secondary" id="btn-post-now" onclick="confirmAction('post')" disabled>Post Now</button>
+    <button class="btn btn-primary"   id="btn-schedule"  onclick="confirmAction('schedule')" disabled>Schedule for 6 PM</button>
   </div>
 
 <script>
-  const API = 'https://api.captionpilot.app';
-  const params = new URLSearchParams(location.search);
-  const TOKEN = params.get('t');
+  const API   = 'https://api.captionpilot.app';
+  const UA    = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+  const TOKEN = new URLSearchParams(location.search).get('t');
 
-  let DATA = null;        // full API response
-  let selected = [];      // current selected indices
+  let DATA      = null;
+  let selected  = [];      // array of photo indices (into scores[])
+  let heroIndex = null;    // which photo index is the hero (null = none)
 
-  // ─── Show/hide helpers ──────────────────────────────────────────────────────
+  // ─── Fetch helpers ───────────────────────────────────────────────────────
+  function apiFetch(url, opts = {}) {
+    opts.headers = Object.assign({ 'User-Agent': UA }, opts.headers || {});
+    return fetch(url, opts);
+  }
+
+  // ─── Show/hide ───────────────────────────────────────────────────────────
+  const STATES = ['state-loading','state-notfound','state-used','state-error','state-scheduled','state-posted','content'];
+
   function showOnly(id) {
-    ['state-loading','state-used','state-notfound','state-error','state-success','content']
-      .forEach(s => document.getElementById(s).hidden = (s !== id));
-    document.getElementById('header').hidden = !['content'].includes(id);
-    document.getElementById('bottom-bar').hidden = !['content'].includes(id);
+    STATES.forEach(s => document.getElementById(s).hidden = (s !== id));
+    const showChrome = (id === 'content');
+    document.getElementById('header').hidden    = !showChrome;
+    document.getElementById('bottom-bar').hidden = !showChrome;
   }
 
   function showError(msg) {
@@ -282,144 +355,198 @@
     showOnly('state-error');
   }
 
-  // ─── Fetch data ─────────────────────────────────────────────────────────────
+  // ─── Load ────────────────────────────────────────────────────────────────
   async function load() {
     if (!TOKEN) { showOnly('state-notfound'); return; }
     try {
-      const res = await fetch(`${API}/api/approve/${TOKEN}`);
+      const res = await apiFetch(`${API}/api/approve/${TOKEN}`);
       if (res.status === 410) { showOnly('state-used'); return; }
       if (res.status === 404) { showOnly('state-notfound'); return; }
       if (!res.ok) { showError(`Server error (${res.status})`); return; }
       DATA = await res.json();
-      selected = [...(DATA.selected || [])];
+      // Initialise selection from server state
+      selected  = Array.isArray(DATA.selected) ? [...DATA.selected] : [];
+      heroIndex = selected.length > 0 ? selected[0] : null;
       render();
     } catch(e) {
       showError('Could not connect to the server. Check your connection.');
     }
   }
 
-  // ─── Render grid ────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────
+  function isVideo(entry) {
+    return /\.(mp4|mov)$/i.test(entry.name || '');
+  }
+
   function render() {
-    document.getElementById('header-name').textContent = DATA.display_name || DATA.account;
-    document.getElementById('header-handle').textContent = DATA.instagram_handle || '';
+    const cfg = DATA.display_name || DATA.account;
+    const handle = DATA.instagram_handle || '';
+    document.getElementById('header-identity').innerHTML =
+      `<strong>${cfg}</strong>${handle ? ' · ' + handle : ''}`;
 
     const grid = document.getElementById('photo-grid');
     grid.innerHTML = '';
 
-    (DATA.scores || []).forEach((photo, i) => {
+    (DATA.scores || []).forEach((entry, i) => {
       const card = document.createElement('div');
-      card.className = 'card' + (selected.includes(i) ? ' selected' : '');
+      card.className = 'card';
       card.dataset.index = i;
 
-      const img = document.createElement('img');
-      img.src = photo.photo_url;
-      img.alt = `Photo ${i+1}`;
-      img.loading = 'lazy';
+      const video = isVideo(entry);
 
+      // Media
+      if (video) {
+        const img = document.createElement('img');
+        img.src   = entry.photo_url;
+        img.alt   = `Video ${i+1}`;
+        img.loading = 'lazy';
+        card.appendChild(img);
+
+        // Play overlay
+        const playWrap = document.createElement('div');
+        playWrap.className = 'badge-play';
+        playWrap.innerHTML = '<div class="play-icon">▶</div>';
+        card.appendChild(playWrap);
+      } else {
+        const img = document.createElement('img');
+        img.src   = entry.photo_url;
+        img.alt   = `Photo ${i+1}`;
+        img.loading = 'lazy';
+        card.appendChild(img);
+      }
+
+      // Dim overlay
       const dim = document.createElement('div');
       dim.className = 'card-dim';
-
-      const check = document.createElement('div');
-      check.className = 'card-check';
-      check.innerHTML = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
-
-      const score = document.createElement('div');
-      score.className = 'card-score';
-      score.textContent = `⭐ ${Math.round(photo.score || 0)}`;
-
-      card.appendChild(img);
       card.appendChild(dim);
-      card.appendChild(check);
-      card.appendChild(score);
-      card.addEventListener('click', () => togglePhoto(i, card));
+
+      // Hero badge (hidden until .hero class applied)
+      const heroBadge = document.createElement('div');
+      heroBadge.className = 'badge-hero';
+      heroBadge.dataset.type = video ? 'reel' : 'hero';
+      heroBadge.innerHTML = `⭐ <span>${video ? 'REEL' : 'HERO'}</span>`;
+      card.appendChild(heroBadge);
+
+      // Score / VIDEO badge
+      const scoreBadge = document.createElement('div');
+      scoreBadge.className = 'badge-score';
+      if (video) {
+        scoreBadge.textContent = 'VIDEO';
+      } else {
+        scoreBadge.textContent = `⭐ ${Math.round(entry.score || 0)}`;
+      }
+      card.appendChild(scoreBadge);
+
+      card.addEventListener('click', () => tapCard(i));
       grid.appendChild(card);
     });
 
+    syncCardStates();
     updateBar();
     showOnly('content');
   }
 
-  // ─── Toggle photo ───────────────────────────────────────────────────────────
-  async function togglePhoto(index, card) {
-    const isSelected = selected.includes(index);
-    const action = isSelected ? 'remove' : 'add';
+  // ─── Tap logic ───────────────────────────────────────────────────────────
+  function tapCard(i) {
+    const sel = selected.includes(i);
+    const hero = (i === heroIndex);
 
-    // Optimistic UI
-    if (isSelected) {
-      selected = selected.filter(i => i !== index);
-      card.classList.remove('selected');
+    if (!sel) {
+      // Unselected → select, auto-hero if no hero
+      selected.push(i);
+      if (heroIndex === null) heroIndex = i;
+    } else if (hero) {
+      // Hero → deselect, promote next
+      selected = selected.filter(x => x !== i);
+      heroIndex = selected.length > 0 ? selected[0] : null;
     } else {
-      selected.push(index);
-      card.classList.add('selected');
+      // Selected non-hero → set as hero
+      heroIndex = i;
     }
-    updateBar();
 
-    try {
-      const res = await fetch(`${API}/api/approve/${TOKEN}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, photo_num: index }),
-      });
-      if (res.status === 410) { showOnly('state-used'); return; }
-      if (!res.ok) {
-        // Revert on error
-        if (isSelected) { selected.push(index); card.classList.add('selected'); }
-        else { selected = selected.filter(i => i !== index); card.classList.remove('selected'); }
-        updateBar();
-      } else {
-        const data = await res.json();
-        if (data.selected) {
-          selected = data.selected;
-          syncCardStates();
-          updateBar();
-        }
-      }
-    } catch(e) {
-      // Network error — keep optimistic state, user can retry via POST NOW
-    }
+    syncCardStates();
+    updateBar();
   }
 
+  // ─── Sync card DOM states ────────────────────────────────────────────────
   function syncCardStates() {
     document.querySelectorAll('.card').forEach(card => {
       const i = parseInt(card.dataset.index);
-      if (selected.includes(i)) card.classList.add('selected');
-      else card.classList.remove('selected');
+      const sel  = selected.includes(i);
+      const hero = (i === heroIndex);
+      card.classList.toggle('selected', sel && !hero);
+      card.classList.toggle('hero', hero);
     });
   }
 
-  // ─── Update bottom bar ──────────────────────────────────────────────────────
+  // ─── Update bottom bar ───────────────────────────────────────────────────
   function updateBar() {
-    document.getElementById('sel-count').textContent = selected.length;
-    document.getElementById('btn-post').disabled = selected.length === 0;
+    const n = selected.length;
+    const hasVideo = selected.some(i => isVideo(DATA.scores[i]));
+    const countEl  = document.getElementById('bottom-count');
+
+    if (n === 0) {
+      countEl.innerHTML = '<strong>0</strong> selected';
+    } else if (hasVideo && n === 1) {
+      countEl.innerHTML = '<strong>1</strong> video selected';
+    } else {
+      countEl.innerHTML = `<strong>${n}</strong> photo${n !== 1 ? 's' : ''} selected`;
+    }
+
+    const dis = (n === 0);
+    document.getElementById('btn-schedule').disabled  = dis;
+    document.getElementById('btn-post-now').disabled  = dis;
+
+    // Video note
+    const note = document.getElementById('video-note');
+    note.classList.toggle('visible', hasVideo && n > 0);
   }
 
-  // ─── POST NOW ───────────────────────────────────────────────────────────────
-  async function postNow() {
-    const btn = document.getElementById('btn-post');
-    btn.disabled = true;
-    btn.textContent = 'Posting…';
+  // ─── Confirm action ──────────────────────────────────────────────────────
+  async function confirmAction(action) {
+    if (selected.length === 0) return;
+
+    const btnSchedule = document.getElementById('btn-schedule');
+    const btnPost     = document.getElementById('btn-post-now');
+
+    btnSchedule.disabled = true;
+    btnPost.disabled     = true;
+
+    if (action === 'schedule') {
+      btnSchedule.textContent = 'Scheduling…';
+    } else {
+      btnPost.textContent = 'Posting…';
+    }
+
+    const hero_index = heroIndex !== null ? heroIndex : (selected[0] ?? 0);
 
     try {
-      const res = await fetch(`${API}/api/approve/${TOKEN}/confirm`, {
-        method: 'POST',
+      const res = await apiFetch(`${API}/api/approve/${TOKEN}/confirm`, {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'post', selected }),
+        body:    JSON.stringify({ action, selected, hero_index }),
       });
+
       if (res.status === 410) { showOnly('state-used'); return; }
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         showError(err.detail || `Server error (${res.status})`);
         return;
       }
-      showOnly('state-success');
+
+      showOnly(action === 'schedule' ? 'state-scheduled' : 'state-posted');
+
     } catch(e) {
-      btn.disabled = false;
-      btn.textContent = 'POST NOW';
+      btnSchedule.disabled = false;
+      btnPost.disabled     = false;
+      btnSchedule.textContent = 'Schedule for 6 PM';
+      btnPost.textContent     = 'Post Now';
       showError('Could not connect. Check your connection and try again.');
     }
   }
 
-  // ─── Boot ───────────────────────────────────────────────────────────────────
+  // ─── Boot ────────────────────────────────────────────────────────────────
   load();
 </script>
 </body>
