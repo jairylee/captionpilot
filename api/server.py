@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 import uvicorn
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
@@ -35,6 +37,15 @@ ADMIN_TOKEN = get_or_create_token()
 
 # ─── App setup ────────────────────────────────────────────────────────────────
 app = FastAPI(title="Caption Pilot Admin API", version="1.0.0")
+
+# Serve admin console at /admin
+ADMIN_DIR = API_DIR.parent / "admin"
+if ADMIN_DIR.exists():
+    app.mount("/admin", StaticFiles(directory=str(ADMIN_DIR), html=True), name="admin")
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/admin/")
 
 app.add_middleware(
     CORSMiddleware,
@@ -543,15 +554,49 @@ async def confirm_approval(token: str, request: Request):
         tokens[token] = meta
         _save_tokens(tokens)
 
-        # Trigger the pipeline
+        # Trigger the pipeline — synchronous so mark_posted() runs before we return
         script_path = WORKSPACE / "scripts" / "instagram_post.py"
         cfg_path = ACCOUNT_CONFIGS_DIR / f"{account}.json"
-        subprocess.Popen(
-            ["python3", str(script_path), "--account", account, "--config", str(cfg_path)],
-            cwd=str(WORKSPACE),
-        )
+        try:
+            result = subprocess.run(
+                ["python3", str(script_path), "--account", account, "--config", str(cfg_path)],
+                cwd=str(WORKSPACE),
+                timeout=120,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print(f"[admin] instagram_post.py exited {result.returncode} for {account}")
+                print(f"[admin] stdout: {result.stdout[-2000:]}")
+                print(f"[admin] stderr: {result.stderr[-2000:]}")
+            else:
+                print(f"[admin] instagram_post.py succeeded for {account}")
+                print(f"[admin] output: {result.stdout[-1000:]}")
+        except subprocess.TimeoutExpired:
+            print(f"[admin] instagram_post.py timed out for {account} — state will reconcile on next sync")
+        except Exception as e:
+            print(f"[admin] instagram_post.py launch error for {account}: {e}")
 
         return {"ok": True, "message": "Approved! Post is being published now."}
+
+    elif action == "skip_unselected":
+        skip_indices = body.get("skip_indices", [])
+        scores = acct_state.get("scores", [])
+        # Mark those files as skipped in the state manager
+        script_path = SCRIPTS_DIR / "state_manager.py"
+        for idx in skip_indices:
+            if 0 <= idx < len(scores):
+                filename = scores[idx]["name"]
+                try:
+                    subprocess.run(
+                        ["python3", "-c",
+                         f"import sys; sys.path.insert(0,'scripts'); from state_manager import StateManager; "
+                         f"mgr = StateManager('{account}'); mgr.mark_skipped('{filename}', reason='skipped on approval page')"],
+                        cwd=str(WORKSPACE), timeout=10, capture_output=True
+                    )
+                except Exception:
+                    pass
+        return {"ok": True, "skipped": len(skip_indices)}
 
     elif action in ("swap", "add", "remove") and photo_num is not None:
         cur_selected = list(acct_state.get("selected", []))

@@ -321,6 +321,7 @@
   <!-- Sticky bottom bar -->
   <div class="bottom-bar" id="bottom-bar" hidden>
     <div class="bottom-count" id="bottom-count"><strong>0</strong> selected</div>
+    <button class="btn btn-ghost"     id="btn-skip"      onclick="skipUnselected()" style="font-size:0.8rem;padding:8px 14px;color:var(--muted);border:1.5px solid var(--border)">Skip rest</button>
     <button class="btn btn-secondary" id="btn-post-now" onclick="confirmAction('post')" disabled>Post Now</button>
     <button class="btn btn-primary"   id="btn-schedule"  onclick="confirmAction('schedule')" disabled>Schedule for 6 PM</button>
   </div>
@@ -502,7 +503,30 @@
     note.classList.toggle('visible', hasVideo && n > 0);
   }
 
-  // ─── Confirm action ──────────────────────────────────────────────────────
+  // ─── Skip unselected ─────────────────────────────────────────────────────
+  async function skipUnselected() {
+    const unselected = DATA.scores
+      .map((_, i) => i)
+      .filter(i => !selected.includes(i));
+    if (unselected.length === 0) return;
+    if (!confirm(`Skip ${unselected.length} unselected photo(s)? They won't appear in future approval pages.`)) return;
+    try {
+      await fetch(`${API}/api/approve/${TOKEN}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
+        body: JSON.stringify({ action: 'skip_unselected', skip_indices: unselected })
+      });
+      // Update UI — dim skipped cards
+      unselected.forEach(i => {
+        const card = document.querySelector(`[data-index="${i}"]`);
+        if (card) { card.style.opacity = '0.3'; card.style.pointerEvents = 'none'; }
+      });
+      document.getElementById('btn-skip').textContent = '✓ Skipped';
+      document.getElementById('btn-skip').disabled = true;
+    } catch(e) { /* silent — state will reconcile */ }
+  }
+
+// ─── Confirm action ──────────────────────────────────────────────────────
   async function confirmAction(action) {
     if (selected.length === 0) return;
 
