@@ -361,8 +361,9 @@
   function showOnly(id) {
     STATES.forEach(s => document.getElementById(s).hidden = (s !== id));
     const showChrome = (id === 'content');
-    document.getElementById('header').hidden    = !showChrome;
+    document.getElementById('header').hidden     = !showChrome;
     document.getElementById('bottom-bar').hidden = !showChrome;
+    document.getElementById('caption-bar').hidden = true; // always hide caption bar on state change
   }
 
   function showError(msg) {
@@ -620,6 +621,9 @@
         return;
       }
 
+      // Reset button states before hiding (clean for any future back-navigation)
+      btnSchedule.disabled = false; btnPost.disabled = false;
+      btnSchedule.textContent = 'Schedule for 6 PM'; btnPost.textContent = 'Post Now';
       showOnly(action === 'schedule' ? 'state-scheduled' : 'state-posted');
 
     } catch(e) {
