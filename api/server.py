@@ -1375,6 +1375,81 @@ def get_conversation(account: str, auth=Depends(verify_token)):
     return {"messages": messages, "account": account, "handle": handle}
 
 
+# ─── Analytics endpoints ─────────────────────────────────────────────────────
+
+@app.post("/api/analytics/event")
+async def log_analytics_event(request: Request):
+    """Log a user action from an approval page. No auth required — token identifies context."""
+    body = await request.json()
+    token = body.get("token", "")
+    event = body.get("event", "")
+    metadata = body.get("metadata", {})
+
+    if not event:
+        return {"ok": False, "error": "event required"}
+
+    # Resolve account from token (check both photo and video token stores)
+    account = body.get("account", "unknown")
+    # Try photo tokens
+    photo_tokens_file = WORKSPACE / ".approval-tokens.json"
+    if photo_tokens_file.exists():
+        try:
+            photo_tokens = json.loads(photo_tokens_file.read_text())
+            if token in photo_tokens:
+                account = photo_tokens[token].get("account", account)
+        except Exception:
+            pass
+    # Try video tokens
+    video_tokens_file = WORKSPACE / ".video-approval-tokens.json"
+    if video_tokens_file.exists():
+        try:
+            video_tokens = json.loads(video_tokens_file.read_text())
+            if token in video_tokens:
+                account = video_tokens[token].get("account", account)
+        except Exception:
+            pass
+
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "token": token[:16] + "..." if len(token) > 16 else token,
+        "account": account,
+        "event": event,
+        "metadata": metadata,
+    }
+
+    # Write to per-account analytics log
+    log_file = WORKSPACE / f".analytics-{account}.jsonl"
+    try:
+        with open(str(log_file), "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception as e:
+        print(f"[analytics] WARNING: could not write event {event}: {e}")
+
+    return {"ok": True}
+
+
+@app.get("/api/analytics/{account}")
+async def get_analytics(account: str, limit: int = 100, auth=Depends(verify_token)):
+    """Get recent analytics events for an account."""
+    log_file = WORKSPACE / f".analytics-{account}.jsonl"
+    if not log_file.exists():
+        return {"account": account, "events": []}
+    try:
+        lines = log_file.read_text(encoding="utf-8").strip().split("\n")
+        events = []
+        for line in reversed(lines[-limit:]):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except Exception:
+                pass
+        return {"account": account, "events": events[:limit]}
+    except Exception as e:
+        return {"account": account, "events": [], "error": str(e)}
+
+
 # ─── QA endpoints ────────────────────────────────────────────────────────────
 
 @app.get("/api/qa/results")

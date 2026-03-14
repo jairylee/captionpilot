@@ -586,6 +586,29 @@
   let selectedSchedTime  = null;   // ISO string of chosen schedule time
   let schedOptsLoaded    = false;  // whether recommendations have been fetched
   let DATA           = {};         // account data (for recommendations)
+  let decisionMade   = false;      // track whether user completed an action
+
+  // ─── Analytics ─────────────────────────────────────────────────────────────
+  async function logEvent(event, metadata = {}) {
+    try {
+      await fetch(`${API_BASE}/api/analytics/event`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          token: TOKEN,
+          event,
+          metadata: {...metadata, ua: navigator.userAgent.substring(0, 80)}
+        })
+      });
+    } catch(e) { /* silent fail */ }
+  }
+
+  // Track page_abandoned via visibilitychange
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && !decisionMade) {
+      logEvent('page_abandoned', {pending_action: pendingAction});
+    }
+  });
 
   function showView(id) {
     document.querySelectorAll('.state-view').forEach(el => el.classList.remove('active'));
@@ -733,6 +756,13 @@
     });
     showError('');
 
+    decisionMade = true;
+    logEvent('decision_made', {
+      action,
+      scheduled: !!scheduledTime,
+      scheduled_time: scheduledTime || null
+    });
+
     try {
       const payload = { action, caption };
       if (scheduledTime) payload.scheduled_time = scheduledTime;
@@ -806,9 +836,12 @@
     const isOpen = panel.classList.toggle('open');
     btn.textContent = isOpen ? 'Hide scheduling options ↑' : 'Schedule instead of posting now →';
 
-    if (isOpen && !schedOptsLoaded) {
-      schedOptsLoaded = true;
-      await loadRecommendations();
+    if (isOpen) {
+      logEvent('schedule_options_opened');
+      if (!schedOptsLoaded) {
+        schedOptsLoaded = true;
+        await loadRecommendations();
+      }
     }
   }
 
@@ -911,9 +944,16 @@
       document.getElementById('display-name').textContent      = data.display_name || '';
       document.getElementById('instagram-handle').textContent  = data.instagram_handle || '';
 
-      // Poster
+      // Poster — log video_played when poster is clicked (proxy for video engagement)
       const img = document.getElementById('poster-img');
       img.src = data.poster_url;
+      let videPlayedLogged = false;
+      document.getElementById('poster-card').addEventListener('click', () => {
+        if (!videPlayedLogged) {
+          videPlayedLogged = true;
+          logEvent('video_played', {duration: data.duration});
+        }
+      });
 
       // Duration badge
       const dur = formatDuration(data.duration);
@@ -930,6 +970,21 @@
       updateCharCount();
 
       showView('view-main');
+      logEvent('page_view', {account: data.account, duration: data.duration});
+
+      // Observe caption block scrolling into view
+      const captionBlock = document.getElementById('caption-block');
+      if (captionBlock && window.IntersectionObserver) {
+        const obs = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              logEvent('caption_viewed');
+              obs.disconnect();
+            }
+          });
+        }, {threshold: 0.5});
+        obs.observe(captionBlock);
+      }
 
     } catch (err) {
       showView('view-404');

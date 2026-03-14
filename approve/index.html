@@ -547,6 +547,29 @@
   let heroIndex          = null;
   let selectedSchedTime  = null;   // ISO string of chosen custom schedule time
   let schedOptsLoaded    = false;  // whether recommendations have been fetched
+  let decisionMade       = false;  // track whether user completed an action (for abandon detection)
+
+  // ─── Analytics ───────────────────────────────────────────────────────────────
+  async function logEvent(event, metadata = {}) {
+    try {
+      await fetch(`${API}/api/analytics/event`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          token: TOKEN,
+          event,
+          metadata: {...metadata, ua: navigator.userAgent.substring(0, 80)}
+        })
+      });
+    } catch(e) { /* silent fail */ }
+  }
+
+  // Track page_abandoned via visibilitychange
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && !decisionMade) {
+      logEvent('page_abandoned', {step: document.getElementById('caption-bar').hidden ? 'photo_grid' : 'caption'});
+    }
+  });
 
   // ─── API helper ──────────────────────────────────────────────────────────
   function apiFetch(url, opts = {}) {
@@ -582,6 +605,7 @@
       selected  = Array.isArray(DATA.selected) ? [...DATA.selected] : [];
       heroIndex = selected.length > 0 ? selected[0] : null;
       render();
+      logEvent('page_view', {account: DATA.account, photo_count: (DATA.scores || []).length});
     } catch(e) {
       showError("Can't reach the server. Check your connection and try again.");
     }
@@ -649,6 +673,20 @@
     syncCardStates();
     updateBar();
     showOnly('content');
+
+    // Observe caption panel scrolling into view
+    const captionBar = document.getElementById('caption-bar');
+    if (captionBar && window.IntersectionObserver) {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            logEvent('caption_viewed');
+            obs.disconnect();
+          }
+        });
+      }, {threshold: 0.5});
+      obs.observe(captionBar);
+    }
   }
 
   // ─── Tap logic ────────────────────────────────────────────────────────────
@@ -814,9 +852,12 @@
     panel.style.display = open ? 'block' : 'none';
     btn.textContent = open ? 'Hide options ↑' : 'Choose a different time →';
 
-    if (open && !schedOptsLoaded) {
-      schedOptsLoaded = true;
-      await loadRecommendations();
+    if (open) {
+      logEvent('schedule_options_opened');
+      if (!schedOptsLoaded) {
+        schedOptsLoaded = true;
+        await loadRecommendations();
+      }
     }
   }
 
@@ -867,6 +908,7 @@
     // Show the schedule button
     document.getElementById('schedule-custom-btn').style.display = 'block';
     updateScheduleCustomBtn();
+    logEvent('recommendation_selected', {label: el.querySelector('div')?.textContent?.trim(), iso});
   }
 
   function onCustomTimeChange() {
@@ -882,6 +924,7 @@
     selectedSchedTime = dt.toISOString();
     document.getElementById('schedule-custom-btn').style.display = 'block';
     updateScheduleCustomBtn();
+    logEvent('custom_time_selected', {iso: selectedSchedTime});
   }
 
   function updateScheduleCustomBtn() {
@@ -933,6 +976,14 @@
 
     const hero_index = heroIndex !== null ? heroIndex : (selected[0] ?? 0);
     const captionVal = document.getElementById('caption-text')?.value?.trim() || undefined;
+
+    decisionMade = true;
+    logEvent('decision_made', {
+      action,
+      photo_count: selected.length,
+      has_custom_time: !!scheduledTime,
+      scheduled_time: scheduledTime || null
+    });
 
     const payload = { action, selected, hero_index, caption: captionVal };
     if (scheduledTime) payload.scheduled_time = scheduledTime;
